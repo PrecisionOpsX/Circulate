@@ -1,26 +1,147 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ============================================================
+   Circulate design system
+   Palette taken from the brand logo: navy ink, gold coin,
+   green + blue "circulation" arrows. Light-first, modern, smooth.
+   ============================================================ */
+@theme {
+  --color-background: #f5f7fb;
+  --color-surface: #ffffff;
+  --color-foreground: #0b1f3a;
+  --color-muted: #5b6b82;
+  --color-border: #e4e9f2;
+
+  /* brand = navy (primary). Existing components reference brand-*. */
+  --color-brand-50: #eef3f9;
+  --color-brand-100: #d6e2ef;
+  --color-brand-200: #aec6de;
+  --color-brand-300: #7f9fc2;
+  --color-brand-400: #4f73a0;
+  --color-brand-500: #2d5183;
+  --color-brand-600: #1d3f6e;
+  --color-brand-700: #16314f;
+  --color-brand-800: #0f2238;
+  --color-brand-900: #0b1f3a;
+
+  /* gold = accent (the coin / credits motif) */
+  --color-gold-50: #fef9ec;
+  --color-gold-100: #fcefca;
+  --color-gold-200: #f9dd8f;
+  --color-gold-300: #f5c94f;
+  --color-gold-400: #f0b429;
+  --color-gold-500: #e09c12;
+  --color-gold-600: #c07f0c;
+  --color-gold-700: #97640e;
+
+  /* circulation accents (the two arrows) */
+  --color-circ-green: #3fa535;
+  --color-circ-green-dark: #2f8a2a;
+  --color-circ-blue: #2b7fff;
+  --color-circ-blue-dark: #1b63d6;
+
+  --color-danger: #dc2626;
+  --color-danger-bg: #fef2f2;
+  --color-success: #2f8a2a;
+  --color-success-bg: #eefaed;
+  --color-warning: #d97706;
+  --color-warning-bg: #fffbeb;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --shadow-soft: 0 1px 2px rgba(11, 31, 58, 0.04),
+    0 8px 24px -8px rgba(11, 31, 58, 0.12);
+  --shadow-lift: 0 2px 4px rgba(11, 31, 58, 0.05),
+    0 18px 40px -12px rgba(11, 31, 58, 0.22);
+
+  /* keyframes */
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-float-slow: float 9s ease-in-out infinite;
+  --animate-spin-slow: spin 22s linear infinite;
+  --animate-gradient: gradient-pan 8s ease infinite;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
   }
 }
 
+@keyframes gradient-pan {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Consistent focus ring across interactive elements. */
+:where(a, button, input, textarea, select):focus-visible {
+  outline: 2px solid var(--color-circ-blue);
+  outline-offset: 2px;
+}
+
+/* ----- scroll-reveal (see components/ui/Reveal.tsx) ----- */
+.reveal {
+  opacity: 0;
+}
+.reveal.is-visible {
+  animation: reveal-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal,
+  .reveal.is-visible {
+    opacity: 1;
+    animation: none;
+  }
+  .animate-float,
+  .animate-float-slow,
+  .animate-spin-slow {
+    animation: none !important;
+  }
+}
+
+/* Brand gradient text helper. */
+.text-gradient {
+  background: linear-gradient(
+    100deg,
+    var(--color-circ-green),
+    var(--color-circ-blue)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }

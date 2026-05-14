@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npx --yes create-next-app@latest circulate-app --typescript --tailwind --app --eslint --src-dir --import-alias \"@/*\" --use-npm --no-turbopack --skip-install)",
+      "Bash(shopt -s dotglob)",
+      "Bash(mv * \"D:\\\\work\\\\Git\\\\Next\\\\Circulate\\\\\" && cd \"D:\\\\work\\\\Git\\\\Next\\\\Circulate\" && rmdir circulate-app && ls -la)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npx next *)",
+      "Bash(npx eslint *)",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(node scripts/check-supabase.mjs)",
+      "Bash(node scripts/seed.mjs)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{try{const j=JSON.parse\\(d\\);console.log\\(Object.keys\\(j.definitions||j.paths||{}\\).join\\(', '\\)||'\\(none\\)'\\)}catch\\(e\\){console.log\\('raw:',d.slice\\(0,300\\)\\)}}\\)\")",
+      "Bash(node scripts/verify-auth.mjs)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(node -e \"try{require.resolve\\('sharp'\\);console.log\\('sharp available'\\)}catch\\(e\\){console.log\\('no sharp'\\)}\")",
+      "Bash(node -e \"console.log\\(\\(require\\('fs'\\).statSync\\('public/logo.png'\\).size/1024\\).toFixed\\(0\\)+'KB'\\)\")",
+      "Bash(echo \"logo.png is now $\\(node -e \"console.log\\(\\(require\\('fs'\\).statSync\\('public/logo.png'\\).size/1024\\).toFixed\\(0\\)+'KB'\\)\"\\)\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} %{time_total}s\\\\n\" --max-time 30 \"http://localhost:3000/_next/image?url=%2Flogo.png&w=96&q=75\")",
+      "Bash(wait)",
+      "Bash(curl -s \"http://localhost:3000/\")",
+      "Bash(read u *)",
+      "Bash(curl -s -o /dev/null --max-time 30 http://localhost:3000__TRACKED_VAR__)",
+      "Bash(echo \"warmed $\\(curl -s \"http://localhost:3000/\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} %{time_total}s %{size_download}b\\\\n\" --max-time 25 \"https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=900&q=80&auto=format&fit=crop\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} %{time_total}s %{size_download}b\\\\n\" --max-time 40 \"http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1556905055-8f358a7a47b2%3Fw%3D900%26q%3D80%26auto%3Dformat%26fit%3Dcrop&w=3840&q=75\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} %{time_total}s %{size_download}b\\\\n\" --max-time 40 \"http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1556905055-8f358a7a47b2%3Fw%3D900%26q%3D80%26auto%3Dformat%26fit%3Dcrop&w=1080&q=75\")",
+      "Bash(curl -s -o /dev/null --max-time 60 \"http://localhost:3000/\")",
+      "Bash(curl -s -o /dev/null --max-time 30 \"http://localhost:3000/\")",
+      "Bash(curl -s -o /dev/null --max-time 90 -w \"%{http_code} %{time_total}s\\\\n\" \"http://localhost:3000/\")"
+    ]
+  }
+}
