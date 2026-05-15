@@ -60,12 +60,16 @@ export type Listing = {
   condition_id: string | null;
   price: number;
   status: ListingStatus;
+  /** Generated tsvector for keyword search. Never written by the app. */
+  search_vector: string;
 } & Timestamps;
 
 export type ListingPhoto = {
   id: string;
   listing_id: string;
   url: string;
+  /** Object path within the `listing-photos` storage bucket. */
+  storage_path: string | null;
   sort_order: number;
   created_at: string;
 };
@@ -172,8 +176,8 @@ export type Database = {
       categories: TableShape<Taxonomy, "id" | "created_at", "sort_order" | "is_active">;
       locations: TableShape<Taxonomy, "id" | "created_at", "sort_order" | "is_active">;
       conditions: TableShape<Taxonomy, "id" | "created_at", "sort_order" | "is_active">;
-      listings: TableShape<Listing, "id" | "created_at" | "updated_at", "description" | "category_id" | "location_id" | "condition_id" | "status">;
-      listing_photos: TableShape<ListingPhoto, "id" | "created_at", "sort_order">;
+      listings: TableShape<Listing, "id" | "created_at" | "updated_at" | "search_vector", "description" | "category_id" | "location_id" | "condition_id" | "status">;
+      listing_photos: TableShape<ListingPhoto, "id" | "created_at", "sort_order" | "storage_path">;
       favorites: TableShape<Favorite, "id" | "created_at">;
       transactions: TableShape<Transaction, "id" | "created_at", "fee_amount" | "status" | "completed_at" | "listing_id">;
       conversations: TableShape<Conversation, "id" | "created_at", "listing_id">;

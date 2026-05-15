@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LISTING_LIMITS } from "@/lib/constants";
 
 /** Shared form validation schemas for auth flows. */
 
@@ -80,6 +81,57 @@ export const profileSchema = z.object({
     .trim()
     .url("Enter a valid image URL")
     .or(z.literal("")),
+});
+
+// ============================================================
+// Marketplace (Milestone 2)
+// ============================================================
+
+/** A single uploaded photo: its public URL + storage object path. */
+export const listingPhotoSchema = z.object({
+  url: z.string().url(),
+  path: z.string().min(1),
+});
+export type ListingPhotoInput = z.infer<typeof listingPhotoSchema>;
+
+/** Listing create / edit form fields (photos are validated separately). */
+export const listingSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(LISTING_LIMITS.TITLE_MIN, `Title must be at least ${LISTING_LIMITS.TITLE_MIN} characters`)
+      .max(LISTING_LIMITS.TITLE_MAX, `Title must be ${LISTING_LIMITS.TITLE_MAX} characters or fewer`),
+    description: z
+      .string()
+      .trim()
+      .max(
+        LISTING_LIMITS.DESCRIPTION_MAX,
+        `Description must be ${LISTING_LIMITS.DESCRIPTION_MAX} characters or fewer`,
+      ),
+    type: z.enum(["goods", "service"], { message: "Choose a listing type" }),
+    categoryId: z.string().uuid("Choose a category"),
+    locationId: z.string().uuid("Choose a location"),
+    // Empty string = "no condition" (valid for services).
+    conditionId: z.string().uuid().or(z.literal("")),
+    price: z.coerce
+      .number()
+      .min(0, "Price cannot be negative")
+      .max(LISTING_LIMITS.MAX_PRICE, "Price is too high"),
+  })
+  .refine((d) => d.type === "service" || d.conditionId !== "", {
+    message: "Choose a condition",
+    path: ["conditionId"],
+  });
+export type ListingInput = z.infer<typeof listingSchema>;
+
+/** Reporting a listing for moderation. */
+export const reportSchema = z.object({
+  reason: z.string().trim().min(1, "Choose a reason"),
+  details: z
+    .string()
+    .trim()
+    .max(1000, "Keep details under 1000 characters"),
 });
 
 export type SignupInput = z.infer<typeof signupSchema>;

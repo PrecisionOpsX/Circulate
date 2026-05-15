@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { getSessionUser } from "@/lib/auth";
 import { Hero } from "@/components/home/Hero";
 import { ValueStrip } from "@/components/home/ValueStrip";
 import { HowItWorks } from "@/components/home/HowItWorks";
@@ -7,7 +9,11 @@ import { Showcase } from "@/components/home/Showcase";
 import { Testimonials } from "@/components/home/Testimonials";
 import { FinalCta } from "@/components/home/FinalCta";
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Signed-in visitors go straight to their dashboard so reopening the
+  // app drops them back where they left off, not on the marketing splash.
+  if (await getSessionUser()) redirect("/dashboard");
+
   return (
     <>
       <Hero />

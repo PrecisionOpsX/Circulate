@@ -31,7 +31,8 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code} %{time_total}s %{size_download}b\\\\n\" --max-time 40 \"http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1556905055-8f358a7a47b2%3Fw%3D900%26q%3D80%26auto%3Dformat%26fit%3Dcrop&w=1080&q=75\")",
       "Bash(curl -s -o /dev/null --max-time 60 \"http://localhost:3000/\")",
       "Bash(curl -s -o /dev/null --max-time 30 \"http://localhost:3000/\")",
-      "Bash(curl -s -o /dev/null --max-time 90 -w \"%{http_code} %{time_total}s\\\\n\" \"http://localhost:3000/\")"
+      "Bash(curl -s -o /dev/null --max-time 90 -w \"%{http_code} %{time_total}s\\\\n\" \"http://localhost:3000/\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(JSON.stringify\\({dependencies:p.dependencies,devDependencies:p.devDependencies,scripts:p.scripts},null,2\\)\\)\")"
     ]
   }
 }

@@ -3,8 +3,19 @@ import { NextResponse, type NextRequest } from "next/server";
 import { clientEnv } from "@/lib/env";
 import type { Database } from "@/lib/supabase/types";
 
-/** Routes that require an authenticated user. */
-const PROTECTED_PREFIXES = ["/dashboard", "/profile", "/listings/new", "/settings"];
+/**
+ * Routes that require an authenticated user. Dynamic owner-only routes
+ * (e.g. /listings/[id]/edit) are additionally guarded in-page with
+ * requireUser().
+ */
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/profile",
+  "/settings",
+  "/listings/new",
+  "/listings/mine",
+  "/favorites",
+];
 
 /**
  * Auth routes a logged-in user should be bounced away from.

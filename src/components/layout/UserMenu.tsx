@@ -66,6 +66,8 @@ export function UserMenu({ displayName, avatarUrl, isAdmin }: UserMenuProps) {
           </div>
           {[
             { href: "/dashboard", label: "Dashboard" },
+            { href: "/listings/mine", label: "My listings" },
+            { href: "/favorites", label: "Saved listings" },
             { href: "/profile", label: "Profile" },
             { href: "/settings", label: "Settings" },
             ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),

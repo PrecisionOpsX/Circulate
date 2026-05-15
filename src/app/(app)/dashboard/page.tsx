@@ -14,12 +14,22 @@ export default async function DashboardPage() {
   const { id, profile } = await requireUser("/dashboard");
 
   const supabase = await createClient();
-  const { data: wallet } = await supabase
-    .from("wallets")
-    .select("balance")
-    .eq("user_id", id)
-    .single();
+  const [walletRes, listingsRes, favoritesRes] = await Promise.all([
+    supabase.from("wallets").select("balance").eq("user_id", id).single(),
+    supabase
+      .from("listings")
+      .select("id", { count: "exact", head: true })
+      .eq("seller_id", id)
+      .eq("status", "active"),
+    supabase
+      .from("favorites")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", id),
+  ]);
 
+  const wallet = walletRes.data;
+  const activeListings = listingsRes.count ?? 0;
+  const savedCount = favoritesRes.count ?? 0;
   const balance = wallet?.balance ?? CREDIT_RULES.STARTING_BALANCE;
   const isNegative = balance < 0;
   const fullyVerified = profile.email_verified && profile.phone_verified;
@@ -85,21 +95,26 @@ export default async function DashboardPage() {
       </section>
 
       {/* Quick actions */}
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <QuickLink
           href="/listings/new"
           title="Create a listing"
           body="Post goods or a service for credits."
         />
         <QuickLink
+          href="/listings/mine"
+          title="My listings"
+          body={`${activeListings} active listing${activeListings === 1 ? "" : "s"}.`}
+        />
+        <QuickLink
+          href="/favorites"
+          title="Saved listings"
+          body={`${savedCount} listing${savedCount === 1 ? "" : "s"} saved.`}
+        />
+        <QuickLink
           href="/browse"
           title="Browse marketplace"
           body="Find something to trade for."
-        />
-        <QuickLink
-          href="/profile"
-          title="Edit profile"
-          body="Update your name, bio and avatar."
         />
       </section>
     </div>

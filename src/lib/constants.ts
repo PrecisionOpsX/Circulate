@@ -19,6 +19,47 @@ export const CREDIT_RULES = {
 /** Fixed id of the single platform reserve wallet (see supabase/seed.sql). */
 export const RESERVE_WALLET_ID = "00000000-0000-0000-0000-000000000001";
 
+/** Supabase Storage bucket holding listing photos. */
+export const LISTING_PHOTOS_BUCKET = "listing-photos";
+
+/** Listing creation rules, mirrored by the Zod schema + DB constraints. */
+export const LISTING_LIMITS = {
+  TITLE_MIN: 3,
+  TITLE_MAX: 100,
+  DESCRIPTION_MAX: 2000,
+  MAX_PRICE: 100000,
+  MAX_PHOTOS: 8,
+  MAX_PHOTO_BYTES: 5 * 1024 * 1024,
+} as const;
+
+/** Image MIME types accepted for photo uploads (matches the bucket config). */
+export const ACCEPTED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+] as const;
+
+/** Listings shown per page on the browse grid. */
+export const BROWSE_PAGE_SIZE = 24;
+
+/** Sort options for the browse grid. */
+export const LISTING_SORTS = [
+  { value: "newest", label: "Newest first" },
+  { value: "price-asc", label: "Price: low to high" },
+  { value: "price-desc", label: "Price: high to low" },
+] as const;
+export type ListingSort = (typeof LISTING_SORTS)[number]["value"];
+
+/** Preset reasons offered when reporting a listing. */
+export const REPORT_REASONS = [
+  "Prohibited or illegal item",
+  "Scam or fraud",
+  "Inaccurate or misleading listing",
+  "Offensive or inappropriate content",
+  "Spam",
+  "Other",
+] as const;
+
 /** Primary navigation shown in the header. */
 export const NAV_LINKS = [
   { href: "/browse", label: "Browse" },
