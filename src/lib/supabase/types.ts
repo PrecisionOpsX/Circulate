@@ -13,6 +13,7 @@ export type ListingStatus = "draft" | "active" | "sold" | "removed";
 export type TxnStatus = "pending" | "completed" | "cancelled" | "disputed";
 export type ReportTarget = "listing" | "user" | "message";
 export type ReportStatus = "open" | "reviewing" | "resolved" | "dismissed";
+export type PurchaseStatus = "pending" | "completed" | "failed" | "refunded";
 
 type Timestamps = {
   created_at: string;
@@ -23,6 +24,8 @@ export type Profile = {
   id: string;
   display_name: string;
   avatar_url: string | null;
+  /** Object path in the `avatars` storage bucket, for cleanup on replace. */
+  avatar_path: string | null;
   bio: string | null;
   phone: string | null;
   email_verified: boolean;
@@ -150,6 +153,25 @@ export type Ad = {
   created_at: string;
 };
 
+export type CreditPurchase = {
+  id: string;
+  user_id: string;
+  stripe_session_id: string | null;
+  stripe_payment_intent_id: string | null;
+  credits: number;
+  amount_usd_cents: number;
+  status: PurchaseStatus;
+  created_at: string;
+  completed_at: string | null;
+};
+
+export type PlatformSettings = {
+  id: number;
+  signup_credit_grant: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type AdminAuditLog = {
   id: string;
   admin_id: string;
@@ -171,7 +193,7 @@ type TableShape<Row, Generated extends keyof Row, Optional extends keyof Row = n
 export type Database = {
   public: {
     Tables: {
-      profiles: TableShape<Profile, "created_at" | "updated_at", "avatar_url" | "bio" | "phone" | "email_verified" | "phone_verified" | "role" | "status" | "completed_trades" | "accepted_terms_at">;
+      profiles: TableShape<Profile, "created_at" | "updated_at", "avatar_url" | "avatar_path" | "bio" | "phone" | "email_verified" | "phone_verified" | "role" | "status" | "completed_trades" | "accepted_terms_at">;
       wallets: TableShape<Wallet, "id" | "created_at" | "updated_at", "balance" | "is_reserve" | "user_id">;
       categories: TableShape<Taxonomy, "id" | "created_at", "sort_order" | "is_active">;
       locations: TableShape<Taxonomy, "id" | "created_at", "sort_order" | "is_active">;
@@ -187,9 +209,30 @@ export type Database = {
       reports: TableShape<Report, "id" | "created_at", "details" | "status" | "resolved_at">;
       ads: TableShape<Ad, "id" | "created_at", "start_date" | "end_date" | "is_enabled">;
       admin_audit_log: TableShape<AdminAuditLog, "id" | "created_at", "detail" | "target_type" | "target_id">;
+      credit_purchases: TableShape<CreditPurchase, "id" | "created_at", "stripe_session_id" | "stripe_payment_intent_id" | "status" | "completed_at">;
+      platform_settings: TableShape<PlatformSettings, "created_at" | "updated_at", "id" | "signup_credit_grant">;
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      transfer_credits: {
+        Args: { p_listing_id: string };
+        Returns: Transaction;
+      };
+      apply_credit_purchase: {
+        Args: {
+          p_user_id: string;
+          p_stripe_payment_intent_id: string;
+          p_stripe_session_id: string;
+          p_credits: number;
+          p_amount_usd_cents: number;
+        };
+        Returns: void;
+      };
+      is_admin: {
+        Args: { uid: string };
+        Returns: boolean;
+      };
+    };
     Enums: {
       user_role: UserRole;
       user_status: UserStatus;
@@ -198,6 +241,7 @@ export type Database = {
       txn_status: TxnStatus;
       report_target: ReportTarget;
       report_status: ReportStatus;
+      purchase_status: PurchaseStatus;
     };
   };
 };

@@ -5,7 +5,9 @@ import { notFound } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { getListingDetail, isFavorited } from "@/lib/listing-queries";
 import { sortedPhotos, listingTypeLabel } from "@/lib/listings";
+import { clientEnv } from "@/lib/env";
 import { formatCredits } from "@/lib/utils";
+import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { VerificationBadges } from "@/components/account/VerificationBadges";
@@ -14,8 +16,12 @@ import { FavoriteButton } from "@/components/listings/FavoriteButton";
 import { ReportDialog } from "@/components/listings/ReportDialog";
 import { OwnerControls } from "@/components/listings/OwnerControls";
 import { ListingStatusBadge } from "@/components/listings/ListingStatusBadge";
+import { PaymentQR } from "@/components/listings/PaymentQR";
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ paid?: string }>;
+};
 
 export async function generateMetadata({
   params,
@@ -25,8 +31,11 @@ export async function generateMetadata({
   return { title: listing?.title ?? "Listing" };
 }
 
-export default async function ListingDetailPage({ params }: PageProps) {
-  const { id } = await params;
+export default async function ListingDetailPage({
+  params,
+  searchParams,
+}: PageProps) {
+  const [{ id }, { paid }] = await Promise.all([params, searchParams]);
   const [listing, user] = await Promise.all([
     getListingDetail(id),
     getSessionUser(),
@@ -43,6 +52,8 @@ export default async function ListingDetailPage({ params }: PageProps) {
     day: "numeric",
     year: "numeric",
   });
+  const payUrl = `${clientEnv.NEXT_PUBLIC_SITE_URL}/pay/${listing.id}`;
+  const canPay = !isOwner && listing.status === "active";
 
   return (
     <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
@@ -53,6 +64,15 @@ export default async function ListingDetailPage({ params }: PageProps) {
         <span className="mx-1.5">/</span>
         <span className="text-foreground">{listing.title}</span>
       </nav>
+
+      {paid && (
+        <div className="mb-5">
+          <Alert variant="success">
+            Payment complete. The seller has been credited and the listing is
+            marked sold.
+          </Alert>
+        </div>
+      )}
 
       <div className="grid gap-8 lg:grid-cols-5">
         {/* Gallery + description */}
@@ -121,20 +141,38 @@ export default async function ListingDetailPage({ params }: PageProps) {
                 <OwnerControls listingId={listing.id} status={listing.status} />
               ) : (
                 <div className="space-y-3">
+                  {canPay ? (
+                    <Button
+                      asChild
+                      size="lg"
+                      variant="gradient"
+                      className="w-full"
+                    >
+                      <Link href={`/pay/${listing.id}`}>
+                        Pay {formatCredits(listing.price)} credits
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="lg"
+                      variant="secondary"
+                      className="w-full"
+                      disabled
+                    >
+                      No longer available
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     size="lg"
-                    variant="gradient"
+                    variant="secondary"
                     className="w-full"
                     disabled
                     title="In-app messaging arrives in Milestone 4"
                   >
                     Message seller
                   </Button>
-                  <p className="text-center text-xs text-muted">
-                    In-app messaging and credit checkout arrive in upcoming
-                    milestones.
-                  </p>
                   <FavoriteButton
                     listingId={listing.id}
                     initialFavorited={favorited}
@@ -146,6 +184,11 @@ export default async function ListingDetailPage({ params }: PageProps) {
               )}
             </div>
           </div>
+
+          {/* Owner-only: in-person payment QR */}
+          {isOwner && listing.status === "active" && (
+            <PaymentQR payUrl={payUrl} />
+          )}
 
           {/* Seller */}
           {seller && (

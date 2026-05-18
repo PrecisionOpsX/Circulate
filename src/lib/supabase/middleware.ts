@@ -5,8 +5,8 @@ import type { Database } from "@/lib/supabase/types";
 
 /**
  * Routes that require an authenticated user. Dynamic owner-only routes
- * (e.g. /listings/[id]/edit) are additionally guarded in-page with
- * requireUser().
+ * (e.g. /listings/[id]/edit, /pay/[id]) are additionally guarded in-page
+ * with requireUser().
  */
 const PROTECTED_PREFIXES = [
   "/dashboard",
@@ -15,6 +15,9 @@ const PROTECTED_PREFIXES = [
   "/listings/new",
   "/listings/mine",
   "/favorites",
+  "/transactions",
+  "/credits",
+  "/pay",
 ];
 
 /**

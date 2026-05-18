@@ -20,12 +20,21 @@ const clientSchema = z.object({
   NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional(),
   NEXT_PUBLIC_STREAM_API_KEY: z.string().optional(),
+  // Flip to "true" once both Stripe server keys are set in the env.
+  NEXT_PUBLIC_STRIPE_ENABLED: z.enum(["true", "false"]).default("false"),
+  // Stripe publishable key (pk_test_ / pk_live_). Safe to expose. Reserved
+  // for any future client-side Stripe.js use; hosted Checkout does not need it.
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
 });
 
 const serverSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   RESEND_API_KEY: z.string().optional(),
   STREAM_API_SECRET: z.string().optional(),
+  // Stripe credentials. Required when NEXT_PUBLIC_STRIPE_ENABLED is true;
+  // optional otherwise so the app builds without them.
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
 });
 
 function format(error: z.ZodError): string {
@@ -45,6 +54,9 @@ const clientParsed = clientSchema.safeParse({
   NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
   NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
   NEXT_PUBLIC_STREAM_API_KEY: process.env.NEXT_PUBLIC_STREAM_API_KEY,
+  NEXT_PUBLIC_STRIPE_ENABLED: process.env.NEXT_PUBLIC_STRIPE_ENABLED,
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
 });
 
 if (!clientParsed.success) {
@@ -59,6 +71,9 @@ export const clientEnv = clientParsed.data;
 export const isPhoneVerificationEnabled =
   clientEnv.NEXT_PUBLIC_PHONE_VERIFICATION_ENABLED === "true";
 
+export const isStripeEnabled =
+  clientEnv.NEXT_PUBLIC_STRIPE_ENABLED === "true";
+
 /**
  * Lazily validate + return server-only env. Call this inside server code
  * (route handlers, server actions). Throws if a required secret is missing.
@@ -70,6 +85,8 @@ export function getServerEnv() {
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     STREAM_API_SECRET: process.env.STREAM_API_SECRET,
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
   });
   if (!parsed.success) {
     throw new Error(

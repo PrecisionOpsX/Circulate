@@ -32,7 +32,9 @@
       "Bash(curl -s -o /dev/null --max-time 60 \"http://localhost:3000/\")",
       "Bash(curl -s -o /dev/null --max-time 30 \"http://localhost:3000/\")",
       "Bash(curl -s -o /dev/null --max-time 90 -w \"%{http_code} %{time_total}s\\\\n\" \"http://localhost:3000/\")",
-      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(JSON.stringify\\({dependencies:p.dependencies,devDependencies:p.devDependencies,scripts:p.scripts},null,2\\)\\)\")"
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(JSON.stringify\\({dependencies:p.dependencies,devDependencies:p.devDependencies,scripts:p.scripts},null,2\\)\\)\")",
+      "Bash(node -e \"console.log\\('stripe:', require\\('stripe/package.json'\\).version\\); console.log\\('qrcode.react:', require\\('qrcode.react/package.json'\\).version\\)\")",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./package.json'\\).dependencies, null, 2\\)\\)\")"
     ]
   }
 }

@@ -68,7 +68,9 @@ export const updatePasswordSchema = z
     path: ["confirmPassword"],
   });
 
-/** Editable profile fields. */
+/** Editable profile fields. Avatar URL and path are produced by the
+ *  AvatarUploader after a successful Supabase Storage upload (or empty
+ *  if the user has no avatar). */
 export const profileSchema = z.object({
   displayName: z
     .string()
@@ -79,8 +81,9 @@ export const profileSchema = z.object({
   avatarUrl: z
     .string()
     .trim()
-    .url("Enter a valid image URL")
+    .url("Avatar URL is invalid")
     .or(z.literal("")),
+  avatarPath: z.string().trim().max(500).or(z.literal("")),
 });
 
 // ============================================================

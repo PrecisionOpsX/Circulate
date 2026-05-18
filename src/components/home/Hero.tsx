@@ -2,9 +2,12 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { StockImage } from "@/components/ui/StockImage";
 import { stockImage, STOCK } from "@/lib/images";
+import { getPlatformSettings } from "@/lib/platform-settings";
+import { formatCredits } from "@/lib/utils";
 
 /** Landing hero: headline + CTAs on the left, layered image collage right. */
-export function Hero() {
+export async function Hero() {
+  const { signupCreditGrant } = await getPlatformSettings();
   return (
     <section className="relative overflow-hidden">
       {/* soft background wash + animated colour blobs */}
@@ -55,8 +58,11 @@ export function Hero() {
               )}
             </div>
             <p className="text-sm text-muted">
-              Everyone starts at <span className="font-semibold text-brand-800">0 credits</span>{" "}
-              and trades their way up.
+              Sign up and get{" "}
+              <span className="font-semibold text-brand-800">
+                {formatCredits(signupCreditGrant)} credits
+              </span>{" "}
+              to start trading.
             </p>
           </div>
         </div>

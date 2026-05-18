@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { profileSchema } from "@/lib/validation";
+import { AVATAR_BUCKET } from "@/lib/constants";
 
 export type ProfileFormState = {
   ok: boolean;
@@ -20,6 +21,7 @@ export async function updateProfileAction(
     displayName: formData.get("displayName"),
     bio: formData.get("bio") ?? "",
     avatarUrl: formData.get("avatarUrl") ?? "",
+    avatarPath: formData.get("avatarPath") ?? "",
   });
 
   if (!parsed.success) {
@@ -39,7 +41,17 @@ export async function updateProfileAction(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "You must be signed in." };
 
-  const { displayName, bio, avatarUrl } = parsed.data;
+  const { displayName, bio, avatarUrl, avatarPath } = parsed.data;
+
+  // Grab the previous avatar path so we can purge the orphaned object
+  // from Storage after the row is updated.
+  const { data: current } = await supabase
+    .from("profiles")
+    .select("avatar_path")
+    .eq("id", user.id)
+    .single();
+  const previousPath = current?.avatar_path ?? null;
+
   // RLS ("profiles: update own") restricts this to the caller's own row.
   const { error } = await supabase
     .from("profiles")
@@ -47,10 +59,18 @@ export async function updateProfileAction(
       display_name: displayName,
       bio: bio || null,
       avatar_url: avatarUrl || null,
+      avatar_path: avatarPath || null,
     })
     .eq("id", user.id);
 
   if (error) return { ok: false, error: error.message };
+
+  // Clean up the prior avatar from Storage if it has been replaced or
+  // removed. Storage RLS lets the user delete only their own folder.
+  const newPath = avatarPath || null;
+  if (previousPath && previousPath !== newPath) {
+    await supabase.storage.from(AVATAR_BUCKET).remove([previousPath]);
+  }
 
   revalidatePath("/profile");
   revalidatePath("/dashboard");

@@ -4,8 +4,10 @@ import { useActionState } from "react";
 import { updateProfileAction, type ProfileFormState } from "./actions";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
+import { Textarea } from "@/components/ui/Textarea";
 import { Alert } from "@/components/ui/Alert";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { AvatarUploader } from "@/components/account/AvatarUploader";
 import type { Profile } from "@/lib/supabase/types";
 
 const initialState: ProfileFormState = { ok: false };
@@ -18,11 +20,28 @@ export function ProfileForm({ profile }: { profile: Profile }) {
   const errors = state.fieldErrors ?? {};
 
   return (
-    <form action={formAction} className="space-y-4" noValidate>
+    <form action={formAction} className="space-y-6" noValidate>
       {state.error && <Alert variant="error">{state.error}</Alert>}
       {state.ok && state.message && (
         <Alert variant="success">{state.message}</Alert>
       )}
+
+      <div className="space-y-1.5">
+        <span className="block text-sm font-medium text-foreground">
+          Profile photo
+        </span>
+        <AvatarUploader
+          userId={profile.id}
+          displayName={profile.display_name}
+          initialUrl={profile.avatar_url}
+          initialPath={profile.avatar_path}
+        />
+        {(errors.avatarUrl || errors.avatarPath) && (
+          <p className="text-sm text-danger">
+            {errors.avatarUrl ?? errors.avatarPath}
+          </p>
+        )}
+      </div>
 
       <Field
         htmlFor="displayName"
@@ -45,33 +64,17 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         error={errors.bio}
         hint="A short intro shown on your public profile. Max 280 characters."
       >
-        <textarea
+        <Textarea
           id="bio"
           name="bio"
           rows={3}
           defaultValue={profile.bio ?? ""}
-          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm placeholder:text-muted"
-          placeholder="Tell the community a bit about yourself…"
+          placeholder="Tell the community a bit about yourself..."
+          invalid={Boolean(errors.bio)}
         />
       </Field>
 
-      <Field
-        htmlFor="avatarUrl"
-        label="Avatar image URL"
-        error={errors.avatarUrl}
-        hint="Direct image link. Photo uploads arrive in a later milestone."
-      >
-        <Input
-          id="avatarUrl"
-          name="avatarUrl"
-          type="url"
-          defaultValue={profile.avatar_url ?? ""}
-          placeholder="https://…"
-          invalid={Boolean(errors.avatarUrl)}
-        />
-      </Field>
-
-      <SubmitButton pendingLabel="Saving…">Save changes</SubmitButton>
+      <SubmitButton pendingLabel="Saving...">Save changes</SubmitButton>
     </form>
   );
 }

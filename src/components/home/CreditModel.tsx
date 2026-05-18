@@ -2,27 +2,31 @@ import Link from "next/link";
 import { Reveal } from "@/components/ui/Reveal";
 import { Button } from "@/components/ui/Button";
 import { CREDIT_RULES } from "@/lib/constants";
-
-const RULES = [
-  {
-    value: "0",
-    label: "Starting balance",
-    body: "Every member begins at zero and earns from there.",
-  },
-  {
-    value: CREDIT_RULES.MIN_BALANCE.toString(),
-    label: "Credit floor",
-    body: "Go a little negative, then sell to bring your balance back up.",
-  },
-  {
-    value: `${CREDIT_RULES.FEE_RATE * 100}%`,
-    label: "Platform fee",
-    body: "A small slice of each trade funds the shared reserve.",
-  },
-];
+import { getPlatformSettings } from "@/lib/platform-settings";
+import { formatCredits } from "@/lib/utils";
 
 /** Dark, premium section explaining the credit model with a worked example. */
-export function CreditModel() {
+export async function CreditModel() {
+  const { signupCreditGrant } = await getPlatformSettings();
+
+  const rules = [
+    {
+      value: formatCredits(signupCreditGrant),
+      label: "Starting credits",
+      body: "We credit every new account on signup, on the house.",
+    },
+    {
+      value: "0",
+      label: "No negative balances",
+      body: "Spend what you have, earn more by selling, or top up.",
+    },
+    {
+      value: `${CREDIT_RULES.FEE_RATE * 100}%`,
+      label: "Platform fee",
+      body: "A small slice of each trade funds the shared reserve.",
+    },
+  ];
+
   return (
     <section className="relative overflow-hidden bg-brand-900 text-white">
       <div className="pointer-events-none absolute inset-0 opacity-60">
@@ -45,9 +49,9 @@ export function CreditModel() {
           </p>
 
           <dl className="mt-8 space-y-5">
-            {RULES.map((rule) => (
+            {rules.map((rule) => (
               <div key={rule.label} className="flex gap-4">
-                <dd className="w-16 shrink-0 text-3xl font-extrabold text-gold-300">
+                <dd className="w-20 shrink-0 text-3xl font-extrabold text-gold-300">
                   {rule.value}
                 </dd>
                 <div>

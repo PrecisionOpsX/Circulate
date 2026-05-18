@@ -5,13 +5,12 @@ export const APP_TAGLINE = "Trade goods & services with community credits.";
 export const APP_DESCRIPTION =
   "Circulate is a local marketplace where neighbours trade goods and services using platform credits instead of cash.";
 
-/** Wallet / credit rules (enforced by the wallet engine in Milestone 3). */
+/** Wallet / credit rules. */
 export const CREDIT_RULES = {
-  /** Every user starts here. */
-  STARTING_BALANCE: 0,
-  /** Hard floor. Purchasing is frozen once a balance is below 0 and
-   *  cannot push past this on the way down. */
-  MIN_BALANCE: -100,
+  /** Default signup grant when the platform_settings table is unreachable.
+   *  The live value lives in DB (platform_settings.signup_credit_grant)
+   *  and is admin-editable; this constant is just a safe fallback. */
+  STARTING_BALANCE: 50,
   /** Platform fee taken from every completed transaction, into the reserve. */
   FEE_RATE: 0.06,
 } as const;
@@ -21,6 +20,15 @@ export const RESERVE_WALLET_ID = "00000000-0000-0000-0000-000000000001";
 
 /** Supabase Storage bucket holding listing photos. */
 export const LISTING_PHOTOS_BUCKET = "listing-photos";
+
+/** Supabase Storage bucket holding profile avatars. */
+export const AVATAR_BUCKET = "avatars";
+
+/** Avatar upload limits. Smaller cap than listing photos because avatars
+ *  are displayed at small sizes everywhere. */
+export const AVATAR_LIMITS = {
+  MAX_BYTES: 2 * 1024 * 1024,
+} as const;
 
 /** Listing creation rules, mirrored by the Zod schema + DB constraints. */
 export const LISTING_LIMITS = {
@@ -49,6 +57,36 @@ export const LISTING_SORTS = [
   { value: "price-desc", label: "Price: high to low" },
 ] as const;
 export type ListingSort = (typeof LISTING_SORTS)[number]["value"];
+
+/**
+ * Credit packages offered on the buy-credits page. Prices are in cents to
+ * match Stripe's `unit_amount` and avoid floating-point drift.
+ */
+export const CREDIT_PACKAGES = [
+  {
+    id: "starter",
+    credits: 50,
+    amountUsdCents: 500,
+    label: "Starter",
+    blurb: "Try the marketplace.",
+  },
+  {
+    id: "popular",
+    credits: 150,
+    amountUsdCents: 1200,
+    label: "Popular",
+    blurb: "Best per-credit value.",
+    popular: true,
+  },
+  {
+    id: "power",
+    credits: 500,
+    amountUsdCents: 3500,
+    label: "Power",
+    blurb: "Stock up and save.",
+  },
+] as const;
+export type CreditPackageId = (typeof CREDIT_PACKAGES)[number]["id"];
 
 /** Preset reasons offered when reporting a listing. */
 export const REPORT_REASONS = [

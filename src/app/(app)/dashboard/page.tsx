@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { CREDIT_RULES } from "@/lib/constants";
+import { isStripeEnabled } from "@/lib/env";
 import { formatCredits } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
@@ -30,8 +31,8 @@ export default async function DashboardPage() {
   const wallet = walletRes.data;
   const activeListings = listingsRes.count ?? 0;
   const savedCount = favoritesRes.count ?? 0;
-  const balance = wallet?.balance ?? CREDIT_RULES.STARTING_BALANCE;
-  const isNegative = balance < 0;
+  const balance = wallet?.balance ?? 0;
+  const isEmpty = balance <= 0;
   const fullyVerified = profile.email_verified && profile.phone_verified;
 
   return (
@@ -47,25 +48,35 @@ export default async function DashboardPage() {
 
       {/* Wallet */}
       <section className="rounded-2xl border border-border bg-surface p-6">
-        <p className="text-sm text-muted">Credit balance</p>
-        <p
-          className={`mt-1 text-4xl font-bold ${
-            isNegative ? "text-danger" : "text-brand-600"
-          }`}
-        >
-          {formatCredits(balance)}
-        </p>
-        {isNegative && (
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm text-muted">Credit balance</p>
+            <p className="mt-1 text-4xl font-bold text-brand-600">
+              {formatCredits(balance)}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {isStripeEnabled && (
+              <Button asChild size="sm" variant="gradient">
+                <Link href="/credits/buy">Buy credits</Link>
+              </Button>
+            )}
+            <Button asChild size="sm" variant="secondary">
+              <Link href="/transactions">History</Link>
+            </Button>
+          </div>
+        </div>
+        {isEmpty && (
           <div className="mt-4">
             <Alert variant="warning">
-              Your balance is negative. Purchasing is paused until it returns to
-              0 or above. Sell a listing to earn credits back.
+              You&apos;re out of credits. Sell a listing to earn some, or buy
+              credits to keep trading.
             </Alert>
           </div>
         )}
         <p className="mt-3 text-xs text-muted">
-          You can spend down to {CREDIT_RULES.MIN_BALANCE} credits. The full
-          wallet (transfers, history and QR payments) arrives in Milestone 3.
+          A {Math.round(CREDIT_RULES.FEE_RATE * 100)}% platform fee is taken
+          from each sale.
         </p>
       </section>
 

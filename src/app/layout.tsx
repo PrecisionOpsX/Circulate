@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import { APP_DESCRIPTION, APP_NAME, APP_TAGLINE } from "@/lib/constants";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { TopProgressBar } from "@/components/layout/TopProgressBar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,6 +40,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
       <body className="flex min-h-screen flex-col">
+        <Suspense fallback={null}>
+          <TopProgressBar />
+        </Suspense>
         <Header />
         <main className="flex flex-1 flex-col">{children}</main>
         <Footer />

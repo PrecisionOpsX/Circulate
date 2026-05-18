@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { PageShell } from "@/components/layout/PageShell";
 import { APP_NAME, CREDIT_RULES } from "@/lib/constants";
+import { getPlatformSettings } from "@/lib/platform-settings";
+import { formatCredits } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Terms of Service" };
 
@@ -8,7 +10,8 @@ export const metadata: Metadata = { title: "Terms of Service" };
  * Placeholder Terms of Service. The admin-managed static content system
  * (Milestone 5) will let this be edited without a deploy.
  */
-export default function TermsPage() {
+export default async function TermsPage() {
+  const { signupCreditGrant } = await getPlatformSettings();
   return (
     <PageShell
       title="Terms of Service"
@@ -34,10 +37,11 @@ export default function TermsPage() {
         <section>
           <h2 className="text-base font-semibold">3. Credits & fees</h2>
           <p className="mt-1 text-muted">
-            Every member starts at {CREDIT_RULES.STARTING_BALANCE} credits and
-            may carry a balance as low as {CREDIT_RULES.MIN_BALANCE}. A{" "}
-            {CREDIT_RULES.FEE_RATE * 100}% platform fee applies to each
-            completed transaction and is paid into the platform reserve.
+            Every new member is credited {formatCredits(signupCreditGrant)}{" "}
+            credits at signup. Wallet balances cannot go below zero; you can
+            only spend what you have. A {CREDIT_RULES.FEE_RATE * 100}% platform
+            fee applies to each completed transaction and is paid into the
+            platform reserve.
           </p>
         </section>
         <section>
