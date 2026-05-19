@@ -60,10 +60,6 @@ export function PhotoUploader({ userId, initialPhotos = [] }: Props) {
         setError("Photos must be JPEG, PNG or WebP.");
         continue;
       }
-      if (file.size > LISTING_LIMITS.MAX_PHOTO_BYTES) {
-        setError("Each photo must be 5 MB or smaller.");
-        continue;
-      }
       const ext = MIME_EXT[file.type] ?? "jpg";
       const path = `${userId}/${crypto.randomUUID()}.${ext}`;
       const { error: uploadError } = await supabase.storage
@@ -198,8 +194,8 @@ export function PhotoUploader({ userId, initialPhotos = [] }: Props) {
       />
 
       <p className="text-xs text-muted">
-        Up to {LISTING_LIMITS.MAX_PHOTOS} photos, 5 MB each. JPEG, PNG or WebP.
-        The first photo is used as the cover.
+        Up to {LISTING_LIMITS.MAX_PHOTOS} photos. JPEG, PNG or WebP. The
+        first photo is used as the cover.
       </p>
       {error && <p className="text-sm text-danger">{error}</p>}
     </div>

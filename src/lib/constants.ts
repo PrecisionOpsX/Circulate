@@ -28,14 +28,15 @@ export const AVATAR_BUCKET = "avatars";
 // size cap. The Supabase project-wide storage limit (Settings > Storage)
 // remains the effective ceiling.
 
-/** Listing creation rules, mirrored by the Zod schema + DB constraints. */
+/** Listing creation rules, mirrored by the Zod schema + DB constraints.
+ *  Per-photo byte cap removed; the bucket has no file_size_limit and the
+ *  Supabase project-wide storage limit is the effective ceiling. */
 export const LISTING_LIMITS = {
   TITLE_MIN: 3,
   TITLE_MAX: 100,
   DESCRIPTION_MAX: 2000,
   MAX_PRICE: 100000,
   MAX_PHOTOS: 8,
-  MAX_PHOTO_BYTES: 5 * 1024 * 1024,
 } as const;
 
 /** Image MIME types accepted for photo uploads (matches the bucket config). */
