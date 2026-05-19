@@ -24,12 +24,9 @@ export const LISTING_PHOTOS_BUCKET = "listing-photos";
 /** Supabase Storage bucket holding profile avatars. */
 export const AVATAR_BUCKET = "avatars";
 
-/** Avatar upload limits. Generous so phone-camera photos fit without
- *  resizing. Capped at 50 MB to match the Supabase free-tier per-file
- *  limit; raise the project-wide cap first if you want to go higher. */
-export const AVATAR_LIMITS = {
-  MAX_BYTES: 50 * 1024 * 1024,
-} as const;
+// AVATAR_LIMITS removed: avatar uploads no longer have a client-side
+// size cap. The Supabase project-wide storage limit (Settings > Storage)
+// remains the effective ceiling.
 
 /** Listing creation rules, mirrored by the Zod schema + DB constraints. */
 export const LISTING_LIMITS = {
@@ -61,45 +58,43 @@ export type ListingSort = (typeof LISTING_SORTS)[number]["value"];
 
 /**
  * Credit packages offered on the buy-credits page. Prices are in cents to
- * match Stripe's `unit_amount` and avoid floating-point drift.
+ * match Stripe's `unit_amount` and avoid floating-point drift. The flat
+ * rate is 1 credit = $1.00 (100 cents) across every package and the
+ * custom-amount option.
  */
 export const CREDIT_PACKAGES = [
   {
     id: "starter",
     credits: 50,
-    amountUsdCents: 500,
+    amountUsdCents: 5000,
     label: "Starter",
     blurb: "Try the marketplace.",
   },
   {
     id: "popular",
     credits: 150,
-    amountUsdCents: 1200,
+    amountUsdCents: 15000,
     label: "Popular",
-    blurb: "Best per-credit value.",
+    blurb: "A solid trading kitty.",
     popular: true,
   },
   {
     id: "power",
     credits: 500,
-    amountUsdCents: 3500,
+    amountUsdCents: 50000,
     label: "Power",
-    blurb: "Stock up and save.",
+    blurb: "Stock up for serious trading.",
   },
 ] as const;
 export type CreditPackageId = (typeof CREDIT_PACKAGES)[number]["id"];
 
-/**
- * Custom-amount credit purchase rules. The flat rate is the
- * smallest-package price-per-credit; buying a fixed package still
- * earns a volume discount.
- */
+/** Custom-amount credit purchase rules. Same flat $1 / credit rate. */
 export const CUSTOM_CREDITS = {
-  /** USD cents charged per credit when the buyer enters a custom amount. */
-  RATE_USD_CENTS: 10,
-  /** Minimum custom purchase. Kept above Stripe's $0.50 minimum charge. */
-  MIN: 10,
-  /** Upper bound so a typo can't trigger a $10k charge. */
+  /** USD cents charged per credit. 1 credit = $1.00. */
+  RATE_USD_CENTS: 100,
+  /** Minimum custom purchase (Stripe's hard floor is $0.50). */
+  MIN: 1,
+  /** Upper bound so a typo can't trigger a runaway charge. */
   MAX: 10000,
 } as const;
 

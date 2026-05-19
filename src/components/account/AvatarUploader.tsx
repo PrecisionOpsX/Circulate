@@ -3,11 +3,7 @@
 import Image from "next/image";
 import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import {
-  ACCEPTED_IMAGE_TYPES,
-  AVATAR_BUCKET,
-  AVATAR_LIMITS,
-} from "@/lib/constants";
+import { ACCEPTED_IMAGE_TYPES, AVATAR_BUCKET } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 
 type Props = {
@@ -69,10 +65,6 @@ export function AvatarUploader({
 
     if (!ACCEPTED_IMAGE_TYPES.includes(file.type as never)) {
       setError("Photo must be JPEG, PNG or WebP.");
-      return;
-    }
-    if (file.size > AVATAR_LIMITS.MAX_BYTES) {
-      setError("Photo must be 50 MB or smaller.");
       return;
     }
 
@@ -160,7 +152,7 @@ export function AvatarUploader({
           )}
         </div>
         <p className="text-xs text-muted">
-          Square photos look best. Max 50 MB. JPEG, PNG or WebP.
+          Square photos look best. JPEG, PNG or WebP.
         </p>
         {error && <p className="text-sm text-danger">{error}</p>}
       </div>
