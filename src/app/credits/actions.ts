@@ -5,23 +5,60 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { clientEnv, isStripeEnabled } from "@/lib/env";
-import { CREDIT_PACKAGES, type CreditPackageId } from "@/lib/constants";
+import {
+  CREDIT_PACKAGES,
+  CUSTOM_CREDITS,
+  type CreditPackageId,
+} from "@/lib/constants";
 
 /**
- * Create a Stripe Checkout Session for one of the credit packages and
- * redirect the user to Stripe's hosted checkout page.
+ * Create a Stripe Checkout Session for either a fixed credit package
+ * (`packageId` form field) or a custom credit amount (`customCredits`
+ * form field), and redirect the user to Stripe's hosted checkout page.
  *
  * Called from a `<form action={startCheckoutAction}>` on the buy-credits
- * page, with the package id passed as a hidden input.
+ * page.
  */
 export async function startCheckoutAction(formData: FormData): Promise<void> {
   if (!isStripeEnabled) {
     redirect("/credits/buy?error=disabled");
   }
 
-  const packageId = String(formData.get("packageId") ?? "") as CreditPackageId;
-  const pkg = CREDIT_PACKAGES.find((p) => p.id === packageId);
-  if (!pkg) {
+  const packageIdRaw = String(formData.get("packageId") ?? "").trim();
+  const customCreditsRaw = String(formData.get("customCredits") ?? "").trim();
+
+  let credits: number;
+  let amountUsdCents: number;
+  let productName: string;
+  let productDescription: string;
+  let packageId: CreditPackageId | "custom";
+
+  if (customCreditsRaw) {
+    const parsedCredits = Number(customCreditsRaw);
+    if (
+      !Number.isFinite(parsedCredits) ||
+      !Number.isInteger(parsedCredits) ||
+      parsedCredits < CUSTOM_CREDITS.MIN ||
+      parsedCredits > CUSTOM_CREDITS.MAX
+    ) {
+      redirect("/credits/buy?error=invalid");
+    }
+    credits = parsedCredits;
+    amountUsdCents = credits * CUSTOM_CREDITS.RATE_USD_CENTS;
+    productName = `${credits} Circulate credits`;
+    productDescription = "Custom credit top-up";
+    packageId = "custom";
+  } else if (packageIdRaw) {
+    const pkg = CREDIT_PACKAGES.find((p) => p.id === packageIdRaw);
+    if (!pkg) {
+      redirect("/credits/buy?error=invalid");
+    }
+    credits = pkg.credits;
+    amountUsdCents = pkg.amountUsdCents;
+    productName = `${pkg.credits} Circulate credits`;
+    productDescription = pkg.label;
+    packageId = pkg.id;
+  } else {
     redirect("/credits/buy?error=invalid");
   }
 
@@ -34,6 +71,12 @@ export async function startCheckoutAction(formData: FormData): Promise<void> {
   }
 
   const stripe = getStripe();
+  const metadata = {
+    user_id: user.id,
+    credits: String(credits),
+    package_id: packageId,
+  };
+
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: user.email ?? undefined,
@@ -43,27 +86,19 @@ export async function startCheckoutAction(formData: FormData): Promise<void> {
         price_data: {
           currency: "usd",
           product_data: {
-            name: `${pkg.credits} Circulate credits`,
-            description: pkg.label,
+            name: productName,
+            description: productDescription,
           },
-          unit_amount: pkg.amountUsdCents,
+          unit_amount: amountUsdCents,
         },
         quantity: 1,
       },
     ],
-    metadata: {
-      user_id: user.id,
-      credits: String(pkg.credits),
-      package_id: pkg.id,
-    },
+    metadata,
     payment_intent_data: {
-      // Mirror the metadata on the PaymentIntent so we still have it
-      // available in webhooks that key off the PI directly.
-      metadata: {
-        user_id: user.id,
-        credits: String(pkg.credits),
-        package_id: pkg.id,
-      },
+      // Mirror the metadata on the PaymentIntent so webhooks that key
+      // off the PI directly still have it.
+      metadata,
     },
     success_url: `${clientEnv.NEXT_PUBLIC_SITE_URL}/credits/buy/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${clientEnv.NEXT_PUBLIC_SITE_URL}/credits/buy?cancelled=1`,

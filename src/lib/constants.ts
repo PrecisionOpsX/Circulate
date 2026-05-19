@@ -89,6 +89,20 @@ export const CREDIT_PACKAGES = [
 ] as const;
 export type CreditPackageId = (typeof CREDIT_PACKAGES)[number]["id"];
 
+/**
+ * Custom-amount credit purchase rules. The flat rate is the
+ * smallest-package price-per-credit; buying a fixed package still
+ * earns a volume discount.
+ */
+export const CUSTOM_CREDITS = {
+  /** USD cents charged per credit when the buyer enters a custom amount. */
+  RATE_USD_CENTS: 10,
+  /** Minimum custom purchase. Kept above Stripe's $0.50 minimum charge. */
+  MIN: 10,
+  /** Upper bound so a typo can't trigger a $10k charge. */
+  MAX: 10000,
+} as const;
+
 /** Preset reasons offered when reporting a listing. */
 export const REPORT_REASONS = [
   "Prohibited or illegal item",

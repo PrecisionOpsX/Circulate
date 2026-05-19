@@ -7,6 +7,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { startCheckoutAction } from "@/app/credits/actions";
+import { CustomCreditCard } from "./CustomCreditCard";
 
 export const metadata: Metadata = { title: "Buy credits" };
 
@@ -66,54 +67,72 @@ export default async function BuyCreditsPage({
           </Button>
         </div>
       ) : (
-        <div className="mt-10 grid gap-5 sm:grid-cols-3">
-          {CREDIT_PACKAGES.map((pkg) => {
-            const popular = "popular" in pkg && pkg.popular;
-            const dollars = (pkg.amountUsdCents / 100).toFixed(2);
-            const perCredit = (pkg.amountUsdCents / pkg.credits / 100).toFixed(
-              3,
-            );
-            return (
-              <form
-                key={pkg.id}
-                action={startCheckoutAction}
-                className={`relative flex flex-col rounded-2xl border bg-surface p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-lift)] ${
-                  popular
-                    ? "border-circ-blue ring-2 ring-circ-blue/20"
-                    : "border-border"
-                }`}
-              >
-                {popular && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge variant="blue">Most popular</Badge>
-                  </span>
-                )}
-                <p className="text-sm font-semibold text-circ-blue">
-                  {pkg.label}
-                </p>
-                <p className="mt-3 text-4xl font-extrabold text-brand-900">
-                  {pkg.credits}
-                  <span className="ml-1 text-base font-semibold text-muted">
-                    credits
-                  </span>
-                </p>
-                <p className="mt-1 text-sm text-muted">
-                  ${dollars} USD (${perCredit} per credit)
-                </p>
-                <p className="mt-3 text-sm text-foreground">{pkg.blurb}</p>
-
-                <input type="hidden" name="packageId" value={pkg.id} />
-                <Button
-                  type="submit"
-                  variant={popular ? "gradient" : "primary"}
-                  className="mt-6 w-full"
+        <>
+          <div className="mt-10 grid gap-5 sm:grid-cols-3">
+            {CREDIT_PACKAGES.map((pkg) => {
+              const popular = "popular" in pkg && pkg.popular;
+              const dollars = (pkg.amountUsdCents / 100).toFixed(2);
+              const perCredit = (
+                pkg.amountUsdCents /
+                pkg.credits /
+                100
+              ).toFixed(3);
+              return (
+                <form
+                  key={pkg.id}
+                  action={startCheckoutAction}
+                  className={`relative flex flex-col rounded-2xl border bg-surface p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-lift)] ${
+                    popular
+                      ? "border-circ-blue ring-2 ring-circ-blue/20"
+                      : "border-border"
+                  }`}
                 >
-                  Buy {pkg.credits} credits
-                </Button>
-              </form>
-            );
-          })}
-        </div>
+                  {popular && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <Badge variant="blue">Most popular</Badge>
+                    </span>
+                  )}
+                  <p className="text-sm font-semibold text-circ-blue">
+                    {pkg.label}
+                  </p>
+                  <p className="mt-3 text-4xl font-extrabold text-brand-900">
+                    {pkg.credits}
+                    <span className="ml-1 text-base font-semibold text-muted">
+                      credits
+                    </span>
+                  </p>
+                  <p className="mt-1 text-sm text-muted">
+                    ${dollars} USD (${perCredit} per credit)
+                  </p>
+                  <p className="mt-3 text-sm text-foreground">{pkg.blurb}</p>
+
+                  <input type="hidden" name="packageId" value={pkg.id} />
+                  <Button
+                    type="submit"
+                    variant={popular ? "gradient" : "primary"}
+                    className="mt-6 w-full"
+                  >
+                    Buy {pkg.credits} credits
+                  </Button>
+                </form>
+              );
+            })}
+          </div>
+
+          {/* Custom amount */}
+          <div className="mt-12">
+            <div className="mb-4 flex items-center gap-3">
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-xs font-medium uppercase tracking-wider text-muted">
+                Or pick your own amount
+              </span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <div className="mx-auto max-w-sm">
+              <CustomCreditCard />
+            </div>
+          </div>
+        </>
       )}
 
       <p className="mx-auto mt-10 max-w-md text-center text-xs text-muted">
