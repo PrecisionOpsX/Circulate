@@ -72,7 +72,7 @@ export function AvatarUploader({
       return;
     }
     if (file.size > AVATAR_LIMITS.MAX_BYTES) {
-      setError("Photo must be 2 MB or smaller.");
+      setError("Photo must be 50 MB or smaller.");
       return;
     }
 
@@ -114,7 +114,7 @@ export function AvatarUploader({
   }
 
   return (
-    <div className="flex items-center gap-5">
+    <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-5">
       <input type="hidden" name="avatarUrl" value={url} />
       <input type="hidden" name="avatarPath" value={path} />
 
@@ -133,8 +133,8 @@ export function AvatarUploader({
         )}
       </div>
 
-      <div className="space-y-2">
-        <div className="flex flex-wrap gap-2">
+      <div className="w-full space-y-2 text-center sm:w-auto sm:text-left">
+        <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
           <Button
             type="button"
             size="sm"
@@ -160,7 +160,7 @@ export function AvatarUploader({
           )}
         </div>
         <p className="text-xs text-muted">
-          Square photos look best. Max 2 MB. JPEG, PNG or WebP.
+          Square photos look best. Max 50 MB. JPEG, PNG or WebP.
         </p>
         {error && <p className="text-sm text-danger">{error}</p>}
       </div>

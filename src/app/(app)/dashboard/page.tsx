@@ -3,7 +3,6 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { CREDIT_RULES } from "@/lib/constants";
-import { isStripeEnabled } from "@/lib/env";
 import { formatCredits } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
@@ -55,12 +54,10 @@ export default async function DashboardPage() {
               {formatCredits(balance)}
             </p>
           </div>
-          <div className="flex gap-2">
-            {isStripeEnabled && (
-              <Button asChild size="sm" variant="gradient">
-                <Link href="/credits/buy">Buy credits</Link>
-              </Button>
-            )}
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="gradient">
+              <Link href="/credits/buy">+ Buy credits</Link>
+            </Button>
             <Button asChild size="sm" variant="secondary">
               <Link href="/transactions">History</Link>
             </Button>

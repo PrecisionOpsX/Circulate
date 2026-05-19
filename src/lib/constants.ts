@@ -24,10 +24,11 @@ export const LISTING_PHOTOS_BUCKET = "listing-photos";
 /** Supabase Storage bucket holding profile avatars. */
 export const AVATAR_BUCKET = "avatars";
 
-/** Avatar upload limits. Smaller cap than listing photos because avatars
- *  are displayed at small sizes everywhere. */
+/** Avatar upload limits. Generous so phone-camera photos fit without
+ *  resizing. Capped at 50 MB to match the Supabase free-tier per-file
+ *  limit; raise the project-wide cap first if you want to go higher. */
 export const AVATAR_LIMITS = {
-  MAX_BYTES: 2 * 1024 * 1024,
+  MAX_BYTES: 50 * 1024 * 1024,
 } as const;
 
 /** Listing creation rules, mirrored by the Zod schema + DB constraints. */
