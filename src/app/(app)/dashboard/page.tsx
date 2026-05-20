@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { CREDIT_RULES } from "@/lib/constants";
 import { formatCredits } from "@/lib/utils";
+import { getPendingRatings } from "@/lib/ratings";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { VerificationBadges } from "@/components/account/VerificationBadges";
@@ -33,6 +34,7 @@ export default async function DashboardPage() {
   const balance = wallet?.balance ?? 0;
   const isEmpty = balance <= 0;
   const fullyVerified = profile.email_verified && profile.phone_verified;
+  const pendingRatings = await getPendingRatings(id);
 
   return (
     <div className="space-y-8">
@@ -76,6 +78,42 @@ export default async function DashboardPage() {
           from each sale.
         </p>
       </section>
+
+      {/* Pending ratings */}
+      {pendingRatings.length > 0 && (
+        <section className="rounded-2xl border border-gold-200 bg-gold-50 p-6">
+          <h2 className="text-lg font-semibold text-brand-900">
+            Rate your recent trade
+            {pendingRatings.length === 1 ? "" : "s"}
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Your feedback helps the next person trust the community.
+          </p>
+          <ul className="mt-4 space-y-2">
+            {pendingRatings.slice(0, 3).map((p) => (
+              <li
+                key={p.transactionId}
+                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-brand-900">
+                    {p.listingTitle ?? "Removed listing"}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {p.role === "buyer" ? "Bought from" : "Sold to"}{" "}
+                    {p.otherParty?.display_name ?? "user"}
+                  </p>
+                </div>
+                <Button asChild size="sm" variant="gold">
+                  <Link href={`/transactions/${p.transactionId}/rate`}>
+                    Rate
+                  </Link>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Verification status */}
       <section className="rounded-2xl border border-border bg-surface p-6">

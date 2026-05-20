@@ -128,13 +128,41 @@ export const listingSchema = z
   });
 export type ListingInput = z.infer<typeof listingSchema>;
 
-/** Reporting a listing for moderation. */
+/** Reporting a listing, user, or message for moderation. */
 export const reportSchema = z.object({
   reason: z.string().trim().min(1, "Choose a reason"),
   details: z
     .string()
     .trim()
     .max(1000, "Keep details under 1000 characters"),
+});
+
+// ============================================================
+// Messaging + Ratings (Milestone 4)
+// ============================================================
+
+export const MESSAGE_MAX_LENGTH = 2000;
+
+/** A single chat message body. */
+export const messageSchema = z.object({
+  body: z
+    .string()
+    .trim()
+    .min(1, "Message can't be empty")
+    .max(MESSAGE_MAX_LENGTH, `Message must be ${MESSAGE_MAX_LENGTH} characters or fewer`),
+});
+
+/** Star rating + optional written review for a completed transaction. */
+export const ratingSchema = z.object({
+  stars: z.coerce
+    .number()
+    .int()
+    .min(1, "Choose at least 1 star")
+    .max(5, "Maximum is 5 stars"),
+  review: z
+    .string()
+    .trim()
+    .max(1000, "Review must be 1000 characters or fewer"),
 });
 
 export type SignupInput = z.infer<typeof signupSchema>;

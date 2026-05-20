@@ -19,7 +19,6 @@ const clientSchema = z.object({
     .default("false"),
   NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional(),
-  NEXT_PUBLIC_STREAM_API_KEY: z.string().optional(),
   // Flip to "true" once both Stripe server keys are set in the env.
   NEXT_PUBLIC_STRIPE_ENABLED: z.enum(["true", "false"]).default("false"),
   // Stripe publishable key (pk_test_ / pk_live_). Safe to expose. Reserved
@@ -30,7 +29,6 @@ const clientSchema = z.object({
 const serverSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   RESEND_API_KEY: z.string().optional(),
-  STREAM_API_SECRET: z.string().optional(),
   // Stripe credentials. Required when NEXT_PUBLIC_STRIPE_ENABLED is true;
   // optional otherwise so the app builds without them.
   STRIPE_SECRET_KEY: z.string().optional(),
@@ -53,7 +51,6 @@ const clientParsed = clientSchema.safeParse({
     process.env.NEXT_PUBLIC_PHONE_VERIFICATION_ENABLED,
   NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
   NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-  NEXT_PUBLIC_STREAM_API_KEY: process.env.NEXT_PUBLIC_STREAM_API_KEY,
   NEXT_PUBLIC_STRIPE_ENABLED: process.env.NEXT_PUBLIC_STRIPE_ENABLED,
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:
     process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,

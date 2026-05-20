@@ -12,7 +12,7 @@ type UserMenuProps = {
   isAdmin: boolean;
 };
 
-/** Avatar button + dropdown with profile links and sign-out. */
+/** Avatar button + dropdown with the signed-in user's navigation. */
 export function UserMenu({ displayName, avatarUrl, isAdmin }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -66,6 +66,7 @@ export function UserMenu({ displayName, avatarUrl, isAdmin }: UserMenuProps) {
           </div>
           {[
             { href: "/dashboard", label: "Dashboard" },
+            { href: "/messages", label: "Messages" },
             { href: "/listings/mine", label: "My listings" },
             { href: "/favorites", label: "Saved listings" },
             { href: "/transactions", label: "Transactions" },

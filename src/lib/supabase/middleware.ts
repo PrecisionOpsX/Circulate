@@ -18,6 +18,7 @@ const PROTECTED_PREFIXES = [
   "/transactions",
   "/credits",
   "/pay",
+  "/messages",
 ];
 
 /**

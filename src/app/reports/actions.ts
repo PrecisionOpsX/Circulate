@@ -53,3 +53,40 @@ export async function reportListingAction(
 
   return { ok: true, message: "Thanks. Our team will review this listing." };
 }
+
+/** File a moderation report against another user. */
+export async function reportUserAction(
+  _prev: ReportFormState,
+  formData: FormData,
+): Promise<ReportFormState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "You must be signed in to report." };
+
+  const targetUserId = String(formData.get("userId") ?? "");
+  if (!targetUserId) return { ok: false, error: "Missing user reference." };
+  if (targetUserId === user.id) {
+    return { ok: false, error: "You can't report yourself." };
+  }
+
+  const parsed = reportSchema.safeParse({
+    reason: formData.get("reason"),
+    details: formData.get("details") ?? "",
+  });
+  if (!parsed.success) {
+    return { ok: false, fieldErrors: fieldErrorsOf(parsed.error) };
+  }
+
+  const { error } = await supabase.from("reports").insert({
+    reporter_id: user.id,
+    target_type: "user",
+    target_id: targetUserId,
+    reason: parsed.data.reason,
+    details: parsed.data.details || null,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  return { ok: true, message: "Thanks. Our team will review this user." };
+}

@@ -17,6 +17,7 @@ import { ReportDialog } from "@/components/listings/ReportDialog";
 import { OwnerControls } from "@/components/listings/OwnerControls";
 import { ListingStatusBadge } from "@/components/listings/ListingStatusBadge";
 import { PaymentQR } from "@/components/listings/PaymentQR";
+import { getOrCreateConversationAction } from "@/app/messages/actions";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -163,16 +164,24 @@ export default async function ListingDetailPage({
                       No longer available
                     </Button>
                   )}
-                  <Button
-                    type="button"
-                    size="lg"
-                    variant="secondary"
+                  <form
+                    action={getOrCreateConversationAction}
                     className="w-full"
-                    disabled
-                    title="In-app messaging arrives in Milestone 4"
                   >
-                    Message seller
-                  </Button>
+                    <input
+                      type="hidden"
+                      name="listingId"
+                      value={listing.id}
+                    />
+                    <Button
+                      type="submit"
+                      size="lg"
+                      variant="secondary"
+                      className="w-full"
+                    >
+                      Message seller
+                    </Button>
+                  </form>
                   <FavoriteButton
                     listingId={listing.id}
                     initialFavorited={favorited}
@@ -194,7 +203,10 @@ export default async function ListingDetailPage({
           {seller && (
             <div className="rounded-2xl border border-border bg-surface p-6">
               <h2 className="text-sm font-semibold text-muted">Seller</h2>
-              <div className="mt-3 flex items-center gap-3">
+              <Link
+                href={`/users/${seller.id}`}
+                className="mt-3 flex items-center gap-3 transition-colors hover:opacity-80"
+              >
                 <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-lg font-semibold text-brand-700">
                   {seller.avatar_url ? (
                     <Image
@@ -215,9 +227,10 @@ export default async function ListingDetailPage({
                   <p className="text-xs text-muted">
                     {seller.completed_trades} completed trade
                     {seller.completed_trades === 1 ? "" : "s"}
+                    {" · View profile"}
                   </p>
                 </div>
-              </div>
+              </Link>
               <div className="mt-4">
                 <VerificationBadges
                   emailVerified={seller.email_verified}

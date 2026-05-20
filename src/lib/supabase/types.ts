@@ -33,6 +33,10 @@ export type Profile = {
   role: UserRole;
   status: UserStatus;
   completed_trades: number;
+  /** Denormalised rating average kept up to date by a DB trigger. */
+  rating_avg: number;
+  /** Denormalised rating count kept up to date by a DB trigger. */
+  rating_count: number;
   accepted_terms_at: string | null;
 } & Timestamps;
 
@@ -102,6 +106,9 @@ export type Conversation = {
   listing_id: string | null;
   buyer_id: string;
   seller_id: string;
+  last_message_at: string | null;
+  last_read_buyer_at: string | null;
+  last_read_seller_at: string | null;
   created_at: string;
 };
 
@@ -193,7 +200,7 @@ type TableShape<Row, Generated extends keyof Row, Optional extends keyof Row = n
 export type Database = {
   public: {
     Tables: {
-      profiles: TableShape<Profile, "created_at" | "updated_at", "avatar_url" | "avatar_path" | "bio" | "phone" | "email_verified" | "phone_verified" | "role" | "status" | "completed_trades" | "accepted_terms_at">;
+      profiles: TableShape<Profile, "created_at" | "updated_at", "avatar_url" | "avatar_path" | "bio" | "phone" | "email_verified" | "phone_verified" | "role" | "status" | "completed_trades" | "rating_avg" | "rating_count" | "accepted_terms_at">;
       wallets: TableShape<Wallet, "id" | "created_at" | "updated_at", "balance" | "is_reserve" | "user_id">;
       categories: TableShape<Taxonomy, "id" | "created_at", "sort_order" | "is_active">;
       locations: TableShape<Taxonomy, "id" | "created_at", "sort_order" | "is_active">;
@@ -202,7 +209,7 @@ export type Database = {
       listing_photos: TableShape<ListingPhoto, "id" | "created_at", "sort_order" | "storage_path">;
       favorites: TableShape<Favorite, "id" | "created_at">;
       transactions: TableShape<Transaction, "id" | "created_at", "fee_amount" | "status" | "completed_at" | "listing_id">;
-      conversations: TableShape<Conversation, "id" | "created_at", "listing_id">;
+      conversations: TableShape<Conversation, "id" | "created_at", "listing_id" | "last_message_at" | "last_read_buyer_at" | "last_read_seller_at">;
       messages: TableShape<Message, "id" | "created_at">;
       blocks: TableShape<Block, "id" | "created_at">;
       ratings: TableShape<Rating, "id" | "created_at", "review">;
