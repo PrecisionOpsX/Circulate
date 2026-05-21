@@ -4,10 +4,15 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { messageSchema } from "@/lib/validation";
+import type { Message } from "@/lib/supabase/types";
 
 export type MessageState = {
   ok: boolean;
   error?: string;
+  /** The freshly-inserted row, returned so the client can swap its
+   *  optimistic entry for the real one (matching ids dedupe the
+   *  realtime echo). */
+  message?: Message;
 };
 
 /**
@@ -93,12 +98,18 @@ export async function sendMessageAction(
     return { ok: false, error: "You are not part of this conversation." };
   }
 
-  const { error } = await supabase.from("messages").insert({
-    conversation_id: conversationId,
-    sender_id: user.id,
-    body: parsed.data.body,
-  });
-  if (error) return { ok: false, error: error.message };
+  const { data: inserted, error } = await supabase
+    .from("messages")
+    .insert({
+      conversation_id: conversationId,
+      sender_id: user.id,
+      body: parsed.data.body,
+    })
+    .select("*")
+    .single();
+  if (error || !inserted) {
+    return { ok: false, error: error?.message ?? "Could not send message." };
+  }
 
   const now = new Date().toISOString();
   const isBuyer = conv.buyer_id === user.id;
@@ -109,7 +120,7 @@ export async function sendMessageAction(
     )
     .eq("id", conversationId);
 
-  return { ok: true };
+  return { ok: true, message: inserted };
 }
 
 /**

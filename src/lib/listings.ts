@@ -15,6 +15,8 @@ export type SellerLite = {
   completed_trades: number;
   email_verified: boolean;
   phone_verified: boolean;
+  rating_avg: number;
+  rating_count: number;
 };
 
 export type ListingPhotoLite = {
@@ -38,7 +40,7 @@ export const LISTING_SELECT =
   "category:categories(name, slug), " +
   "location:locations(name, slug), " +
   "condition:conditions(name, slug), " +
-  "seller:profiles(id, display_name, avatar_url, completed_trades, email_verified, phone_verified)";
+  "seller:profiles(id, display_name, avatar_url, completed_trades, email_verified, phone_verified, rating_avg, rating_count)";
 
 /** Photos sorted by their display order. */
 export function sortedPhotos(listing: {

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/layout/Logo";
 import { UserMenu } from "@/components/layout/UserMenu";
 import { MobileMenu } from "@/components/layout/MobileMenu";
+import { HeaderBell } from "@/components/layout/HeaderBell";
 
 /** Sticky top navigation. Auth-aware: shows the user menu when signed in. */
 export async function Header() {
@@ -52,24 +53,7 @@ export async function Header() {
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6 1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09c0 .67.39 1.27 1 1.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82c.24.61.84 1 1.51 1H21a2 2 0 1 1 0 4h-.09c-.67 0-1.27.39-1.51 1z" />
                 </svg>
               </Link>
-              <Link
-                href="/messages"
-                aria-label={
-                  unread > 0
-                    ? `Messages, ${unread} unread`
-                    : "Messages"
-                }
-                className="relative flex h-10 w-10 items-center justify-center rounded-lg text-muted transition-colors hover:bg-brand-50 hover:text-brand-800"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" />
-                </svg>
-                {unread > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold leading-none text-white">
-                    {unread > 9 ? "9+" : unread}
-                  </span>
-                )}
-              </Link>
+              <HeaderBell initialUnread={unread} userId={user.id} />
               <Button asChild size="sm" variant="gradient" className="hidden sm:inline-flex">
                 <Link href="/listings/new">+ New listing</Link>
               </Button>

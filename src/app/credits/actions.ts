@@ -10,6 +10,10 @@ import {
   CUSTOM_CREDITS,
   type CreditPackageId,
 } from "@/lib/constants";
+import {
+  getPlatformSettings,
+  getRecentCreditPurchaseTotal,
+} from "@/lib/platform-settings";
 
 /**
  * Create a Stripe Checkout Session for either a fixed credit package
@@ -68,6 +72,15 @@ export async function startCheckoutAction(formData: FormData): Promise<void> {
   } = await supabase.auth.getUser();
   if (!user) {
     redirect("/login?next=/credits/buy");
+  }
+
+  // Monthly purchase cap (rolling 30 days, admin-configurable).
+  const [{ monthlyCreditPurchaseCap }, alreadyBought] = await Promise.all([
+    getPlatformSettings(),
+    getRecentCreditPurchaseTotal(user.id),
+  ]);
+  if (alreadyBought + credits > monthlyCreditPurchaseCap) {
+    redirect("/credits/buy?error=cap");
   }
 
   const stripe = getStripe();

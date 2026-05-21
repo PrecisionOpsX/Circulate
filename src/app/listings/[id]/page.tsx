@@ -17,6 +17,9 @@ import { ReportDialog } from "@/components/listings/ReportDialog";
 import { OwnerControls } from "@/components/listings/OwnerControls";
 import { ListingStatusBadge } from "@/components/listings/ListingStatusBadge";
 import { PaymentQR } from "@/components/listings/PaymentQR";
+import { ListingChatPreview } from "@/components/messaging/ListingChatPreview";
+import { RatingStars } from "@/components/ratings/RatingStars";
+import { getListingConversationsForUser } from "@/lib/messaging";
 import { getOrCreateConversationAction } from "@/app/messages/actions";
 
 type PageProps = {
@@ -46,6 +49,9 @@ export default async function ListingDetailPage({
 
   const isOwner = user?.id === listing.seller_id;
   const favorited = await isFavorited(listing.id, user?.id ?? null);
+  const chatPreviews = user
+    ? await getListingConversationsForUser(listing.id, user.id, isOwner)
+    : [];
   const photos = sortedPhotos(listing);
   const seller = listing.seller;
   const postedOn = new Date(listing.created_at).toLocaleDateString("en-US", {
@@ -231,6 +237,20 @@ export default async function ListingDetailPage({
                   </p>
                 </div>
               </Link>
+              {seller.rating_count > 0 ? (
+                <div className="mt-3 flex items-center gap-2">
+                  <RatingStars value={seller.rating_avg} size="sm" />
+                  <span className="text-xs text-muted">
+                    <span className="font-semibold text-brand-900">
+                      {seller.rating_avg.toFixed(1)}
+                    </span>{" "}
+                    from {seller.rating_count}{" "}
+                    {seller.rating_count === 1 ? "rating" : "ratings"}
+                  </span>
+                </div>
+              ) : (
+                <p className="mt-3 text-xs text-muted">No ratings yet</p>
+              )}
               <div className="mt-4">
                 <VerificationBadges
                   emailVerified={seller.email_verified}
@@ -238,6 +258,15 @@ export default async function ListingDetailPage({
                 />
               </div>
             </div>
+          )}
+
+          {/* Existing conversations on this listing */}
+          {chatPreviews.length > 0 && (
+            <ListingChatPreview
+              conversations={chatPreviews}
+              currentUserId={user!.id}
+              isOwner={isOwner}
+            />
           )}
 
           {!isOwner && (

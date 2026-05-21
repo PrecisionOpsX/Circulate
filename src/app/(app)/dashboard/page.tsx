@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { CREDIT_RULES } from "@/lib/constants";
 import { formatCredits } from "@/lib/utils";
-import { getPendingRatings } from "@/lib/ratings";
+import { getPendingRatings, getRatingsForUser } from "@/lib/ratings";
+import { getMyUnreadCount } from "@/lib/messaging";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { VerificationBadges } from "@/components/account/VerificationBadges";
+import { RatingStars } from "@/components/ratings/RatingStars";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -15,7 +18,14 @@ export default async function DashboardPage() {
   const { id, profile } = await requireUser("/dashboard");
 
   const supabase = await createClient();
-  const [walletRes, listingsRes, favoritesRes] = await Promise.all([
+  const [
+    walletRes,
+    listingsRes,
+    favoritesRes,
+    unreadCount,
+    pendingRatings,
+    receivedRatings,
+  ] = await Promise.all([
     supabase.from("wallets").select("balance").eq("user_id", id).single(),
     supabase
       .from("listings")
@@ -26,6 +36,9 @@ export default async function DashboardPage() {
       .from("favorites")
       .select("id", { count: "exact", head: true })
       .eq("user_id", id),
+    getMyUnreadCount(id),
+    getPendingRatings(id),
+    getRatingsForUser(id),
   ]);
 
   const wallet = walletRes.data;
@@ -34,7 +47,7 @@ export default async function DashboardPage() {
   const balance = wallet?.balance ?? 0;
   const isEmpty = balance <= 0;
   const fullyVerified = profile.email_verified && profile.phone_verified;
-  const pendingRatings = await getPendingRatings(id);
+  const latestRatings = receivedRatings.slice(0, 3);
 
   return (
     <div className="space-y-8">
@@ -115,6 +128,76 @@ export default async function DashboardPage() {
         </section>
       )}
 
+      {/* Recent ratings received */}
+      {latestRatings.length > 0 && (
+        <section className="rounded-2xl border border-border bg-surface p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Recent reviews</h2>
+              {profile.rating_count > 0 && (
+                <div className="mt-1 flex items-center gap-2">
+                  <RatingStars value={profile.rating_avg} size="sm" />
+                  <span className="text-xs text-muted">
+                    <span className="font-semibold text-brand-900">
+                      {profile.rating_avg.toFixed(1)}
+                    </span>{" "}
+                    from {profile.rating_count}{" "}
+                    {profile.rating_count === 1 ? "rating" : "ratings"}
+                  </span>
+                </div>
+              )}
+            </div>
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/profile">See all</Link>
+            </Button>
+          </div>
+          <ul className="mt-4 space-y-4">
+            {latestRatings.map((r) => (
+              <li
+                key={r.id}
+                className="border-b border-border pb-4 last:border-b-0 last:pb-0"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
+                      {r.rater?.avatar_url ? (
+                        <Image
+                          src={r.rater.avatar_url}
+                          alt=""
+                          width={32}
+                          height={32}
+                          className="h-full w-full object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        (r.rater?.display_name ?? "?").charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-brand-900">
+                        {r.rater?.display_name ?? "A trade partner"}
+                      </p>
+                      <RatingStars value={r.stars} size="sm" />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted">
+                    {new Date(r.created_at).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </p>
+                </div>
+                {r.review && (
+                  <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-foreground">
+                    {r.review}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Verification status */}
       <section className="rounded-2xl border border-border bg-surface p-6">
         <div className="flex items-center justify-between gap-4">
@@ -148,6 +231,16 @@ export default async function DashboardPage() {
           body="Post goods or a service for credits."
         />
         <QuickLink
+          href="/messages"
+          title="Messages"
+          body={
+            unreadCount > 0
+              ? `${unreadCount} unread ${unreadCount === 1 ? "conversation" : "conversations"}.`
+              : "No new messages."
+          }
+          highlight={unreadCount > 0}
+        />
+        <QuickLink
           href="/listings/mine"
           title="My listings"
           body={`${activeListings} active listing${activeListings === 1 ? "" : "s"}.`}
@@ -156,11 +249,6 @@ export default async function DashboardPage() {
           href="/favorites"
           title="Saved listings"
           body={`${savedCount} listing${savedCount === 1 ? "" : "s"} saved.`}
-        />
-        <QuickLink
-          href="/browse"
-          title="Browse marketplace"
-          body="Find something to trade for."
         />
       </section>
     </div>
@@ -171,16 +259,26 @@ function QuickLink({
   href,
   title,
   body,
+  highlight,
 }: {
   href: string;
   title: string;
   body: string;
+  highlight?: boolean;
 }) {
   return (
     <Link
       href={href}
-      className="rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-brand-300 hover:bg-brand-50"
+      className={`relative rounded-2xl border bg-surface p-5 transition-colors hover:border-brand-300 hover:bg-brand-50 ${
+        highlight ? "border-circ-blue ring-2 ring-circ-blue/20" : "border-border"
+      }`}
     >
+      {highlight && (
+        <span
+          aria-hidden
+          className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-danger"
+        />
+      )}
       <h3 className="font-medium">{title}</h3>
       <p className="mt-1 text-sm text-muted">{body}</p>
     </Link>

@@ -89,14 +89,17 @@ export const CREDIT_PACKAGES = [
 ] as const;
 export type CreditPackageId = (typeof CREDIT_PACKAGES)[number]["id"];
 
-/** Custom-amount credit purchase rules. Same flat $1 / credit rate. */
+/** Custom-amount credit purchase rules. Same flat $1 / credit rate.
+ *  MAX matches the largest fixed package and the default monthly cap;
+ *  the actual cap (admin-adjustable in platform_settings) is enforced
+ *  in startCheckoutAction. */
 export const CUSTOM_CREDITS = {
   /** USD cents charged per credit. 1 credit = $1.00. */
   RATE_USD_CENTS: 100,
   /** Minimum custom purchase (Stripe's hard floor is $0.50). */
   MIN: 1,
-  /** Upper bound so a typo can't trigger a runaway charge. */
-  MAX: 10000,
+  /** Upper bound per single purchase. */
+  MAX: 500,
 } as const;
 
 /** Preset reasons offered when reporting a listing. */

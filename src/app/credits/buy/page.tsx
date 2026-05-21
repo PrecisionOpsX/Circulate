@@ -3,6 +3,11 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { isStripeEnabled } from "@/lib/env";
 import { CREDIT_PACKAGES } from "@/lib/constants";
+import {
+  getPlatformSettings,
+  getRecentCreditPurchaseTotal,
+} from "@/lib/platform-settings";
+import { formatCredits } from "@/lib/utils";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -18,8 +23,13 @@ export default async function BuyCreditsPage({
 }: {
   searchParams: SearchParams;
 }) {
-  await requireUser("/credits/buy");
+  const user = await requireUser("/credits/buy");
   const { cancelled, error } = await searchParams;
+
+  const { monthlyCreditPurchaseCap } = await getPlatformSettings();
+  const alreadyBought = await getRecentCreditPurchaseTotal(user.id);
+  const remainingCap = Math.max(0, monthlyCreditPurchaseCap - alreadyBought);
+  const capReached = remainingCap <= 0;
 
   return (
     <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
@@ -52,6 +62,43 @@ export default async function BuyCreditsPage({
           </Alert>
         </div>
       )}
+      {error === "cap" && (
+        <div className="mx-auto mt-6 max-w-md">
+          <Alert variant="error">
+            That purchase would exceed your monthly limit of{" "}
+            {formatCredits(monthlyCreditPurchaseCap)} credits. Try a smaller
+            amount or wait for older purchases to roll off the 30-day window.
+          </Alert>
+        </div>
+      )}
+
+      {/* Monthly cap status (always shown so users understand the limit). */}
+      {isStripeEnabled && (
+        <div className="mx-auto mt-6 max-w-md rounded-2xl border border-border bg-surface px-4 py-3 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted">This month&apos;s purchase limit</span>
+            <span className="font-semibold text-brand-900">
+              {formatCredits(remainingCap)} of{" "}
+              {formatCredits(monthlyCreditPurchaseCap)} left
+            </span>
+          </div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-brand-100">
+            <div
+              className="h-full bg-[linear-gradient(90deg,var(--color-circ-green),var(--color-circ-blue))]"
+              style={{
+                width: `${Math.max(
+                  0,
+                  Math.min(
+                    100,
+                    (alreadyBought / Math.max(1, monthlyCreditPurchaseCap)) *
+                      100,
+                  ),
+                )}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {!isStripeEnabled ? (
         <div className="mx-auto mt-10 max-w-md rounded-2xl border border-dashed border-border bg-surface p-8 text-center">
@@ -77,6 +124,7 @@ export default async function BuyCreditsPage({
                 pkg.credits /
                 100
               ).toFixed(3);
+              const wouldExceed = pkg.credits > remainingCap;
               return (
                 <form
                   key={pkg.id}
@@ -111,8 +159,11 @@ export default async function BuyCreditsPage({
                     type="submit"
                     variant={popular ? "gradient" : "primary"}
                     className="mt-6 w-full"
+                    disabled={wouldExceed}
                   >
-                    Buy {pkg.credits} credits
+                    {wouldExceed
+                      ? "Over monthly limit"
+                      : `Buy ${pkg.credits} credits`}
                   </Button>
                 </form>
               );
@@ -129,9 +180,19 @@ export default async function BuyCreditsPage({
               <span className="h-px flex-1 bg-border" />
             </div>
             <div className="mx-auto max-w-sm">
-              <CustomCreditCard />
+              <CustomCreditCard remainingCap={remainingCap} />
             </div>
           </div>
+
+          {capReached && (
+            <div className="mx-auto mt-10 max-w-md">
+              <Alert variant="warning">
+                You&apos;ve reached this month&apos;s purchase limit of{" "}
+                {formatCredits(monthlyCreditPurchaseCap)} credits. The limit
+                rolls forward 30 days from each purchase.
+              </Alert>
+            </div>
+          )}
         </>
       )}
 

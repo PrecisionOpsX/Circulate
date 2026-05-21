@@ -175,6 +175,7 @@ export type CreditPurchase = {
 export type PlatformSettings = {
   id: number;
   signup_credit_grant: number;
+  monthly_credit_purchase_cap: number;
   created_at: string;
   updated_at: string;
 };
@@ -217,7 +218,7 @@ export type Database = {
       ads: TableShape<Ad, "id" | "created_at", "start_date" | "end_date" | "is_enabled">;
       admin_audit_log: TableShape<AdminAuditLog, "id" | "created_at", "detail" | "target_type" | "target_id">;
       credit_purchases: TableShape<CreditPurchase, "id" | "created_at", "stripe_session_id" | "stripe_payment_intent_id" | "status" | "completed_at">;
-      platform_settings: TableShape<PlatformSettings, "created_at" | "updated_at", "id" | "signup_credit_grant">;
+      platform_settings: TableShape<PlatformSettings, "created_at" | "updated_at", "id" | "signup_credit_grant" | "monthly_credit_purchase_cap">;
     };
     Views: Record<string, never>;
     Functions: {

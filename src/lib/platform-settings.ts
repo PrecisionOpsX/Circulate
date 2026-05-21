@@ -5,23 +5,51 @@ import { CREDIT_RULES } from "@/lib/constants";
 export type PlatformSettings = {
   /** Credits granted to each new account by the handle_new_user trigger. */
   signupCreditGrant: number;
+  /** Maximum credits a single user can purchase in any rolling 30 days. */
+  monthlyCreditPurchaseCap: number;
 };
 
 const FALLBACK: PlatformSettings = {
   signupCreditGrant: CREDIT_RULES.STARTING_BALANCE,
+  monthlyCreditPurchaseCap: 500,
 };
 
 /**
  * Read the singleton platform_settings row. Falls back to the in-code
- * default if the table is unreachable so pages can still render.
+ * defaults if the table is unreachable so pages can still render.
  */
 export async function getPlatformSettings(): Promise<PlatformSettings> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("platform_settings")
-    .select("signup_credit_grant")
+    .select("signup_credit_grant, monthly_credit_purchase_cap")
     .eq("id", 1)
     .maybeSingle();
   if (!data) return FALLBACK;
-  return { signupCreditGrant: Number(data.signup_credit_grant) };
+  return {
+    signupCreditGrant: Number(data.signup_credit_grant),
+    monthlyCreditPurchaseCap:
+      data.monthly_credit_purchase_cap != null
+        ? Number(data.monthly_credit_purchase_cap)
+        : FALLBACK.monthlyCreditPurchaseCap,
+  };
+}
+
+/**
+ * Sum of completed credit purchases the user has made in the last 30
+ * days. Used to enforce monthlyCreditPurchaseCap before starting a
+ * Stripe checkout session.
+ */
+export async function getRecentCreditPurchaseTotal(
+  userId: string,
+): Promise<number> {
+  const supabase = await createClient();
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { data } = await supabase
+    .from("credit_purchases")
+    .select("credits")
+    .eq("user_id", userId)
+    .eq("status", "completed")
+    .gte("completed_at", cutoff);
+  return (data ?? []).reduce((sum, row) => sum + Number(row.credits), 0);
 }

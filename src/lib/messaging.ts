@@ -110,6 +110,70 @@ export function otherPartyOf(
   return null;
 }
 
+export type ListingConversationPreview = ConversationWithRelations & {
+  latestMessage: Pick<Message, "body" | "sender_id" | "created_at"> | null;
+  unread: boolean;
+};
+
+/**
+ * Conversations on a specific listing that involve the given user.
+ *
+ * If `isOwner` is true, returns every conversation buyers have started
+ * on this listing. Otherwise returns just the user's own conversation
+ * with the seller (zero or one row), since (listing, buyer, seller) is
+ * a unique key.
+ *
+ * Each entry carries its latest message so the caller can render a
+ * preview without N+1 queries.
+ */
+export async function getListingConversationsForUser(
+  listingId: string,
+  userId: string,
+  isOwner: boolean,
+): Promise<ListingConversationPreview[]> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("conversations")
+    .select(CONVERSATION_SELECT)
+    .eq("listing_id", listingId)
+    .order("last_message_at", { ascending: false, nullsFirst: false });
+
+  query = isOwner
+    ? query.eq("seller_id", userId)
+    : query.eq("buyer_id", userId);
+
+  const { data: convs } = await query.returns<ConversationWithRelations[]>();
+  if (!convs || convs.length === 0) return [];
+
+  const convIds = convs.map((c) => c.id);
+  const { data: messages } = await supabase
+    .from("messages")
+    .select("conversation_id, body, sender_id, created_at")
+    .in("conversation_id", convIds)
+    .order("created_at", { ascending: false });
+
+  // First (newest) message per conversation wins.
+  const latestByConv = new Map<
+    string,
+    Pick<Message, "body" | "sender_id" | "created_at">
+  >();
+  for (const m of messages ?? []) {
+    if (!latestByConv.has(m.conversation_id)) {
+      latestByConv.set(m.conversation_id, {
+        body: m.body,
+        sender_id: m.sender_id,
+        created_at: m.created_at,
+      });
+    }
+  }
+
+  return convs.map((c) => ({
+    ...c,
+    latestMessage: latestByConv.get(c.id) ?? null,
+    unread: isUnreadFor(c, userId),
+  }));
+}
+
 /**
  * Unread heuristic: a conversation is unread for me if there's a last
  * message stamped later than the timestamp at which I last read this

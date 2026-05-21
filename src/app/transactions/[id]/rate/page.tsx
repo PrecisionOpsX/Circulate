@@ -7,7 +7,10 @@ import { RatingForm } from "@/components/ratings/RatingForm";
 
 export const metadata: Metadata = { title: "Rate your trade" };
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ listing?: string }>;
+};
 
 type TxnWithParties = {
   id: string;
@@ -20,8 +23,14 @@ type TxnWithParties = {
   seller: { id: string; display_name: string } | null;
 };
 
-export default async function RateTransactionPage({ params }: PageProps) {
-  const { id } = await params;
+export default async function RateTransactionPage({
+  params,
+  searchParams,
+}: PageProps) {
+  const [{ id }, { listing: listingHint }] = await Promise.all([
+    params,
+    searchParams,
+  ]);
   const user = await requireUser(`/transactions/${id}/rate`);
   const supabase = await createClient();
 
@@ -58,6 +67,15 @@ export default async function RateTransactionPage({ params }: PageProps) {
     .maybeSingle();
   if (existing) redirect(`/users/${ratee.id}`);
 
+  // Where to send the user if they choose to skip. Prefer the listing
+  // (post-purchase flow passes its id in the query string); otherwise
+  // fall back to the listing on the txn, then the transactions list.
+  const skipHref = listingHint
+    ? `/listings/${listingHint}?paid=1`
+    : txn.listing_id
+      ? `/listings/${txn.listing_id}?paid=1`
+      : "/transactions";
+
   return (
     <div className="mx-auto w-full max-w-xl flex-1 px-4 py-10">
       <nav className="mb-5 text-sm text-muted">
@@ -82,6 +100,14 @@ export default async function RateTransactionPage({ params }: PageProps) {
           transactionId={txn.id}
           rateeName={ratee.display_name}
         />
+        <div className="mt-5 border-t border-border pt-4 text-center">
+          <Link
+            href={skipHref}
+            className="text-sm font-medium text-muted hover:text-foreground"
+          >
+            Skip for now
+          </Link>
+        </div>
       </div>
     </div>
   );

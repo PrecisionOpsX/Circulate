@@ -30,7 +30,7 @@ export async function payListingAction(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Sign in to pay." };
 
-  const { error } = await supabase.rpc("transfer_credits", {
+  const { data: txn, error } = await supabase.rpc("transfer_credits", {
     p_listing_id: listingId,
   });
   if (error) {
@@ -41,5 +41,13 @@ export async function payListingAction(
   revalidatePath("/listings/mine");
   revalidatePath("/transactions");
   revalidatePath("/dashboard");
+
+  // After a successful trade, send the buyer to the rate-this-trade
+  // page. The page itself offers a "Skip for now" link back to the
+  // listing if they don't want to rate right away.
+  const txnId = (txn as { id?: string } | null)?.id;
+  if (txnId) {
+    redirect(`/transactions/${txnId}/rate?listing=${listingId}`);
+  }
   redirect(`/listings/${listingId}?paid=1`);
 }

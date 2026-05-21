@@ -1,45 +1,56 @@
 "use client";
 
-import { useActionState, useRef, useState, type KeyboardEvent } from "react";
-import {
-  sendMessageAction,
-  type MessageState,
-} from "@/app/messages/actions";
+import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import type { MessageState } from "@/app/messages/actions";
 import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
 import { MESSAGE_MAX_LENGTH } from "@/lib/validation";
 
-const initial: MessageState = { ok: false };
+type Props = {
+  /** Send handler provided by ConversationThread, which manages the
+   *  optimistic-state lifecycle. Returns the action result. */
+  onSend: (body: string) => Promise<MessageState>;
+};
 
 /**
- * Compose + send a message. Cmd/Ctrl+Enter and plain Enter (without
- * Shift) submit; Shift+Enter inserts a newline.
+ * Compose + send a message. Enter (without Shift) submits;
+ * Shift+Enter inserts a newline. The textarea clears as soon as the
+ * send is dispatched (the optimistic bubble already represents what
+ * was typed) so the user can keep typing.
  */
-export function MessageInput({
-  conversationId,
-}: {
-  conversationId: string;
-}) {
+export function MessageInput({ onSend }: Props) {
   const [body, setBody] = useState("");
-  const [state, formAction, pending] = useActionState(
-    sendMessageAction,
-    initial,
-  );
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
-  // Adjust state during render: when the action succeeds, clear the input.
-  const [lastAckId, setLastAckId] = useState(0);
-  const ackId = state.ok ? 1 : 0;
-  if (lastAckId !== ackId) {
-    setLastAckId(ackId);
-    if (state.ok) setBody("");
+  async function submit(): Promise<void> {
+    const trimmed = body.trim();
+    if (!trimmed || pending) return;
+    if (trimmed.length > MESSAGE_MAX_LENGTH) return;
+
+    setPending(true);
+    setError(null);
+    // Clear the input immediately so the user can keep typing while the
+    // network round-trip happens; the optimistic bubble already shows
+    // what was sent.
+    setBody("");
+    const result = await onSend(trimmed);
+    setPending(false);
+    if (!result.ok && result.error) {
+      setError(result.error);
+    }
+  }
+
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    void submit();
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (!body.trim() || pending) return;
-      formRef.current?.requestSubmit();
+      void submit();
     }
   }
 
@@ -49,10 +60,9 @@ export function MessageInput({
   return (
     <form
       ref={formRef}
-      action={formAction}
+      onSubmit={onSubmit}
       className="space-y-2 border-t border-border bg-surface p-3 sm:p-4"
     >
-      <input type="hidden" name="conversationId" value={conversationId} />
       <div className="flex items-end gap-2">
         <Textarea
           name="body"
@@ -64,15 +74,12 @@ export function MessageInput({
           placeholder="Write a message..."
           className="resize-none"
           aria-label="Message"
-          required
         />
         <Button type="submit" disabled={!canSend} variant="gradient">
-          {pending ? "Sending..." : "Send"}
+          Send
         </Button>
       </div>
-      {state.error && !pending && (
-        <p className="text-xs text-danger">{state.error}</p>
-      )}
+      {error && <p className="text-xs text-danger">{error}</p>}
       {tooLong && (
         <p className="text-xs text-danger">
           Message too long ({body.length} of {MESSAGE_MAX_LENGTH} characters).
