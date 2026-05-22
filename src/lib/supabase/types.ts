@@ -37,6 +37,8 @@ export type Profile = {
   rating_avg: number;
   /** Denormalised rating count kept up to date by a DB trigger. */
   rating_count: number;
+  /** Per-admin UI preference: show admin tools, or browse as a customer. */
+  admin_view: boolean;
   accepted_terms_at: string | null;
 } & Timestamps;
 
@@ -117,6 +119,8 @@ export type Message = {
   conversation_id: string;
   sender_id: string;
   body: string;
+  /** False until the recipient opens the conversation thread. */
+  viewed: boolean;
   created_at: string;
 };
 
@@ -176,6 +180,8 @@ export type PlatformSettings = {
   id: number;
   signup_credit_grant: number;
   monthly_credit_purchase_cap: number;
+  /** Platform fee taken from each completed sale, as a 0-1 rate. */
+  transaction_fee_rate: number;
   created_at: string;
   updated_at: string;
 };
@@ -201,7 +207,7 @@ type TableShape<Row, Generated extends keyof Row, Optional extends keyof Row = n
 export type Database = {
   public: {
     Tables: {
-      profiles: TableShape<Profile, "created_at" | "updated_at", "avatar_url" | "avatar_path" | "bio" | "phone" | "email_verified" | "phone_verified" | "role" | "status" | "completed_trades" | "rating_avg" | "rating_count" | "accepted_terms_at">;
+      profiles: TableShape<Profile, "created_at" | "updated_at", "avatar_url" | "avatar_path" | "bio" | "phone" | "email_verified" | "phone_verified" | "role" | "status" | "completed_trades" | "rating_avg" | "rating_count" | "admin_view" | "accepted_terms_at">;
       wallets: TableShape<Wallet, "id" | "created_at" | "updated_at", "balance" | "is_reserve" | "user_id">;
       categories: TableShape<Taxonomy, "id" | "created_at", "sort_order" | "is_active">;
       locations: TableShape<Taxonomy, "id" | "created_at", "sort_order" | "is_active">;
@@ -211,14 +217,14 @@ export type Database = {
       favorites: TableShape<Favorite, "id" | "created_at">;
       transactions: TableShape<Transaction, "id" | "created_at", "fee_amount" | "status" | "completed_at" | "listing_id">;
       conversations: TableShape<Conversation, "id" | "created_at", "listing_id" | "last_message_at" | "last_read_buyer_at" | "last_read_seller_at">;
-      messages: TableShape<Message, "id" | "created_at">;
+      messages: TableShape<Message, "id" | "created_at", "viewed">;
       blocks: TableShape<Block, "id" | "created_at">;
       ratings: TableShape<Rating, "id" | "created_at", "review">;
       reports: TableShape<Report, "id" | "created_at", "details" | "status" | "resolved_at">;
       ads: TableShape<Ad, "id" | "created_at", "start_date" | "end_date" | "is_enabled">;
       admin_audit_log: TableShape<AdminAuditLog, "id" | "created_at", "detail" | "target_type" | "target_id">;
       credit_purchases: TableShape<CreditPurchase, "id" | "created_at", "stripe_session_id" | "stripe_payment_intent_id" | "status" | "completed_at">;
-      platform_settings: TableShape<PlatformSettings, "created_at" | "updated_at", "id" | "signup_credit_grant" | "monthly_credit_purchase_cap">;
+      platform_settings: TableShape<PlatformSettings, "created_at" | "updated_at", "id" | "signup_credit_grant" | "monthly_credit_purchase_cap" | "transaction_fee_rate">;
     };
     Views: Record<string, never>;
     Functions: {
@@ -239,6 +245,15 @@ export type Database = {
       is_admin: {
         Args: { uid: string };
         Returns: boolean;
+      };
+      admin_grant_credits: {
+        Args: {
+          p_recipient_id: string;
+          p_amount: number;
+          p_admin_id: string;
+          p_note?: string;
+        };
+        Returns: void;
       };
     };
     Enums: {

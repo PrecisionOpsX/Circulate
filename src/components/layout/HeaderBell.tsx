@@ -1,76 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import type { Message } from "@/lib/supabase/types";
+import { useUnreadCount } from "@/hooks/useUnreadCount";
 
 type Props = {
   /** Unread-conversation count rendered server-side; used as the
-   *  initial value and re-applied whenever it changes on navigation. */
+   *  initial value and kept live via Realtime INSERT/UPDATE events. */
   initialUnread: number;
   userId: string;
 };
 
 /**
- * Messages bell in the header. Renders the unread badge live by
- * subscribing to INSERTs on `messages` (RLS limits the events to
- * conversations the user is a participant in).
+ * Messages bell in the header.
  *
- * - Increments when a message arrives from someone other than the user.
- * - Skips messages in the conversation the user is currently viewing.
- * - Clears to 0 when the user navigates to /messages or a specific
- *   conversation page (those views mark the relevant rows as read).
- * - Re-syncs to the server-provided count when props update on
- *   subsequent navigations.
+ * The badge count is kept accurate in real time:
+ *  - Increments when a new message arrives from another user (INSERT).
+ *  - Re-fetches the true count when any message is marked as viewed
+ *    (UPDATE), so the badge clears the instant a conversation is read.
+ *  - Skips incrementing for messages in the conversation the user is
+ *    currently viewing (ConversationThread handles those immediately).
+ *
+ * Uses useUnreadCount which queries the DB directly via the client
+ * session -- no dependency on router.refresh() or prop changes.
  */
 export function HeaderBell({ initialUnread, userId }: Props) {
-  const [unread, setUnread] = useState(initialUnread);
-  const pathname = usePathname();
-  const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
-
-  // Re-sync with the server-provided count whenever it changes (e.g.,
-  // after a route navigation re-renders Header on the server).
-  useEffect(() => {
-    queueMicrotask(() => setUnread(initialUnread));
-  }, [initialUnread]);
-
-  // Clear the badge as soon as the user lands on any /messages route.
-  // The server-side mark-as-read happens via the conversation page
-  // itself; this keeps the badge in sync without a refresh.
-  useEffect(() => {
-    if (pathname === "/messages" || pathname.startsWith("/messages/")) {
-      queueMicrotask(() => setUnread(0));
-      router.refresh();
-    }
-  }, [pathname, router]);
-
-  // Live subscription. RLS on `messages` filters the channel to rows the
-  // signed-in user can SELECT, i.e. messages in conversations they're a
-  // part of.
-  useEffect(() => {
-    const channel = supabase
-      .channel(`header-bell:${userId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          const m = payload.new as Message;
-          if (m.sender_id === userId) return;
-          // Ignore messages in the conversation the user is currently
-          // looking at; the thread page is marking them read live.
-          if (pathname === `/messages/${m.conversation_id}`) return;
-          setUnread((prev) => prev + 1);
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [userId, pathname, supabase]);
-
+  const unread = useUnreadCount(initialUnread, userId);
   const ariaLabel = unread > 0 ? `Messages, ${unread} unread` : "Messages";
 
   return (

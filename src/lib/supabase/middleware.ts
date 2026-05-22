@@ -19,6 +19,7 @@ const PROTECTED_PREFIXES = [
   "/credits",
   "/pay",
   "/messages",
+  "/admin",
 ];
 
 /**
@@ -34,7 +35,21 @@ const AUTH_ROUTES = ["/login", "/signup", "/forgot-password"];
  * always see a fresh session.
  */
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const { pathname } = request.nextUrl;
+
+  // Expose the current pathname to Server Components through a request
+  // header. The root layout reads it to decide whether to render the
+  // public site chrome, or let the /admin section supply its own.
+  // Rebuilt each time so refreshed auth cookies still propagate.
+  const buildRequestHeaders = () => {
+    const headers = new Headers(request.headers);
+    headers.set("x-pathname", pathname);
+    return headers;
+  };
+
+  let response = NextResponse.next({
+    request: { headers: buildRequestHeaders() },
+  });
 
   const supabase = createServerClient<Database>(
     clientEnv.NEXT_PUBLIC_SUPABASE_URL,
@@ -48,7 +63,9 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
-          response = NextResponse.next({ request });
+          response = NextResponse.next({
+            request: { headers: buildRequestHeaders() },
+          });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options),
           );
@@ -62,8 +79,6 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
 
   const isProtected = PROTECTED_PREFIXES.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`),

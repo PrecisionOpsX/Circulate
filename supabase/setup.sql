@@ -1440,3 +1440,318 @@ begin
     alter publication supabase_realtime add table public.messages;
   end if;
 end $$;
+
+
+-- ============================================================
+-- Circulate, Milestone 5: basic admin.
+--
+-- 1. profiles.admin_view: per-admin UI preference. When true an admin
+--    sees the admin entry points; when false they browse as a regular
+--    customer. Toggled from the avatar dropdown. Default true.
+--
+-- 2. A guard trigger so a non-admin can never change their own (or
+--    anyone's) `role`. The "profiles: update own" RLS policy lets users
+--    update their own row, which on its own would let someone set
+--    role = 'admin' on themselves. The trigger closes that hole:
+--    role changes are allowed only for admins (or system / service
+--    role contexts where auth.uid() is null).
+--
+-- Idempotent.
+-- ============================================================
+
+alter table public.profiles
+  add column if not exists admin_view boolean not null default true;
+
+-- ---------- role-change guard ----------
+create or replace function public.guard_profile_role()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.role is distinct from old.role then
+    -- auth.uid() is null for service-role / SQL-editor contexts, which
+    -- are trusted. Authenticated callers must be admins.
+    if auth.uid() is not null and not public.is_admin(auth.uid()) then
+      raise exception 'Only admins can change a user role.'
+        using errcode = '42501';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_guard_role on public.profiles;
+create trigger profiles_guard_role
+  before update on public.profiles
+  for each row execute function public.guard_profile_role();
+
+
+-- ============================================================
+-- Circulate, Milestone 5: admin settings + customer-view default.
+--
+-- 1. profiles.admin_view now defaults to FALSE. An admin starts in the
+--    regular customer experience and explicitly opts into the admin
+--    panel from the avatar menu. Existing rows are reset to false so
+--    every account lands in customer view.
+--
+-- 2. platform_settings.transaction_fee_rate: the platform fee taken from
+--    each completed sale, now admin-editable. transfer_credits() reads
+--    the rate from platform_settings instead of a hardcoded 0.06.
+--
+-- Idempotent: safe to re-run.
+-- ============================================================
+
+-- ---------- 1. customer view is the default ----------
+alter table public.profiles
+  alter column admin_view set default false;
+
+update public.profiles
+  set admin_view = false
+  where admin_view;
+
+-- ---------- 2. admin-editable transaction fee ----------
+alter table public.platform_settings
+  add column if not exists transaction_fee_rate numeric(5, 4) not null
+    default 0.06
+    check (transaction_fee_rate >= 0 and transaction_fee_rate <= 1);
+
+-- ---------- transfer_credits(): read the fee rate from settings ----------
+create or replace function public.transfer_credits(p_listing_id uuid)
+returns public.transactions
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_buyer_id   uuid := auth.uid();
+  v_listing    public.listings%rowtype;
+  v_buyer_bal  numeric;
+  v_fee_rate   numeric;
+  v_fee        numeric;
+  v_net        numeric;
+  v_txn        public.transactions;
+begin
+  if v_buyer_id is null then
+    raise exception 'You must be signed in to pay.' using errcode = '42501';
+  end if;
+
+  select * into v_listing
+    from public.listings
+    where id = p_listing_id
+    for update;
+
+  if not found then
+    raise exception 'Listing not found.' using errcode = 'P0002';
+  end if;
+
+  if v_listing.status <> 'active' then
+    raise exception 'This listing is no longer available.' using errcode = 'P0002';
+  end if;
+
+  if v_listing.seller_id = v_buyer_id then
+    raise exception 'You cannot buy your own listing.' using errcode = '22023';
+  end if;
+
+  select balance into v_buyer_bal
+    from public.wallets
+    where user_id = v_buyer_id
+    for update;
+
+  if v_buyer_bal is null then
+    raise exception 'Your wallet is missing.' using errcode = 'P0002';
+  end if;
+
+  if v_buyer_bal < v_listing.price then
+    raise exception 'Not enough credits. Sell something or buy more credits first.'
+      using errcode = '22023';
+  end if;
+
+  -- Platform fee rate is admin-configurable in platform_settings.
+  select transaction_fee_rate into v_fee_rate
+    from public.platform_settings
+    where id = 1;
+  v_fee_rate := coalesce(v_fee_rate, 0.06);
+
+  v_fee := round(v_listing.price * v_fee_rate, 2);
+  v_net := v_listing.price - v_fee;
+
+  update public.wallets
+    set balance = balance - v_listing.price
+    where user_id = v_buyer_id;
+
+  update public.wallets
+    set balance = balance + v_net
+    where user_id = v_listing.seller_id;
+
+  update public.wallets
+    set balance = balance + v_fee
+    where is_reserve = true;
+
+  update public.listings
+    set status = 'sold'
+    where id = p_listing_id;
+
+  update public.profiles
+    set completed_trades = completed_trades + 1
+    where id in (v_buyer_id, v_listing.seller_id);
+
+  insert into public.transactions (
+    listing_id, buyer_id, seller_id,
+    gross_amount, fee_amount, net_amount,
+    status, completed_at
+  )
+  values (
+    p_listing_id, v_buyer_id, v_listing.seller_id,
+    v_listing.price, v_fee, v_net,
+    'completed', now()
+  )
+  returning * into v_txn;
+
+  return v_txn;
+end;
+$$;
+
+revoke all on function public.transfer_credits(uuid) from public;
+grant execute on function public.transfer_credits(uuid) to authenticated;
+
+-- ============================================================
+-- Migration 0014: admin reserve-wallet management.
+-- ============================================================
+
+create or replace function public.admin_grant_credits(
+  p_recipient_id uuid,
+  p_amount       numeric,
+  p_admin_id     uuid,
+  p_note         text default null
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_reserve_balance numeric;
+  v_rows_updated    integer;
+begin
+  if not public.is_admin(p_admin_id) then
+    raise exception 'Only admins can grant credits.' using errcode = '42501';
+  end if;
+
+  if p_amount <= 0 then
+    raise exception 'Amount must be positive.' using errcode = '22023';
+  end if;
+
+  select balance into v_reserve_balance
+    from public.wallets
+    where is_reserve = true
+    for update;
+
+  if v_reserve_balance is null then
+    raise exception 'Reserve wallet not found.' using errcode = 'P0002';
+  end if;
+
+  if v_reserve_balance < p_amount then
+    raise exception
+      'Reserve balance (%) is insufficient for a grant of %.',
+      v_reserve_balance, p_amount
+      using errcode = '22023';
+  end if;
+
+  update public.wallets
+    set balance = balance - p_amount
+    where is_reserve = true;
+
+  update public.wallets
+    set balance = balance + p_amount
+    where user_id = p_recipient_id;
+
+  get diagnostics v_rows_updated = row_count;
+  if v_rows_updated = 0 then
+    raise exception 'Recipient wallet not found.' using errcode = 'P0002';
+  end if;
+
+  insert into public.admin_audit_log (
+    admin_id, action, target_type, target_id, detail
+  )
+  values (
+    p_admin_id,
+    'grant_credits',
+    'user',
+    p_recipient_id::text,
+    jsonb_build_object(
+      'amount', p_amount,
+      'note', coalesce(p_note, '')
+    )
+  );
+end;
+$$;
+
+revoke all on function public.admin_grant_credits(uuid, numeric, uuid, text) from public;
+grant execute on function public.admin_grant_credits(uuid, numeric, uuid, text) to authenticated;
+
+-- ============================================================
+-- Migration 0015: fix conversations RLS + trigger.
+-- ============================================================
+
+-- Fix trigger to use SECURITY DEFINER so RLS cannot block it.
+create or replace function public.bump_conversation_last_message_at()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.conversations
+    set last_message_at = new.created_at
+    where id = new.conversation_id;
+  return new;
+end;
+$$;
+
+drop trigger if exists messages_bump_conversation on public.messages;
+create trigger messages_bump_conversation
+  after insert on public.messages
+  for each row execute function public.bump_conversation_last_message_at();
+
+-- UPDATE policy so participants can write last_read_*_at.
+drop policy if exists "conversations: update as participant" on public.conversations;
+create policy "conversations: update as participant"
+  on public.conversations for update
+  using  (auth.uid() in (buyer_id, seller_id))
+  with check (auth.uid() in (buyer_id, seller_id));
+
+-- Backfill existing conversations that have messages but null last_message_at.
+update public.conversations c
+set last_message_at = m.latest_at
+from (
+  select conversation_id, max(created_at) as latest_at
+    from public.messages
+   group by conversation_id
+) m
+where c.id = m.conversation_id
+  and c.last_message_at is null;
+
+-- ============================================================
+-- Migration 0016: per-message read tracking (viewed column).
+-- ============================================================
+
+alter table public.messages
+  add column if not exists viewed boolean not null default false;
+
+create index if not exists messages_unread_idx
+  on public.messages (conversation_id)
+  where viewed = false;
+
+drop policy if exists "messages: mark viewed" on public.messages;
+create policy "messages: mark viewed"
+  on public.messages for update
+  using (
+    sender_id <> auth.uid()
+    and exists (
+      select 1 from public.conversations c
+      where c.id = conversation_id
+        and auth.uid() in (c.buyer_id, c.seller_id)
+    )
+  )
+  with check (viewed = true);

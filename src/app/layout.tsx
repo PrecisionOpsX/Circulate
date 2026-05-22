@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
+import { headers } from "next/headers";
 import "./globals.css";
 import { APP_DESCRIPTION, APP_NAME, APP_TAGLINE } from "@/lib/constants";
 import { Header } from "@/components/layout/Header";
@@ -29,11 +30,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // The /admin section ships its own header, nav and footer (see
+  // src/app/admin/layout.tsx), so the public site chrome is skipped
+  // there. x-pathname is set by the proxy (src/lib/supabase/middleware).
+  const pathname = (await headers()).get("x-pathname") ?? "";
+  const isAdminArea = pathname === "/admin" || pathname.startsWith("/admin/");
+
   return (
     <html
       lang="en"
@@ -43,9 +50,9 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <TopProgressBar />
         </Suspense>
-        <Header />
+        {!isAdminArea && <Header />}
         <main className="flex flex-1 flex-col">{children}</main>
-        <Footer />
+        {!isAdminArea && <Footer />}
       </body>
     </html>
   );

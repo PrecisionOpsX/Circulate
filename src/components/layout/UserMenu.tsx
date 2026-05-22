@@ -13,7 +13,11 @@ type UserMenuProps = {
 };
 
 /** Avatar button + dropdown with the signed-in user's navigation. */
-export function UserMenu({ displayName, avatarUrl, isAdmin }: UserMenuProps) {
+export function UserMenu({
+  displayName,
+  avatarUrl,
+  isAdmin,
+}: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -35,7 +39,20 @@ export function UserMenu({ displayName, avatarUrl, isAdmin }: UserMenuProps) {
     router.refresh();
   }
 
+  // Always show the admin panel link to admins, regardless of admin_view state.
+  const showAdminLink = isAdmin;
   const initial = displayName.charAt(0).toUpperCase();
+
+  const links = [
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/messages", label: "Messages" },
+    { href: "/listings/mine", label: "My listings" },
+    { href: "/favorites", label: "Saved listings" },
+    { href: "/transactions", label: "Transactions" },
+    { href: "/credits/buy", label: "Buy credits" },
+    { href: "/profile", label: "Profile" },
+    { href: "/settings", label: "Settings" },
+  ];
 
   return (
     <div className="relative" ref={ref}>
@@ -58,23 +75,16 @@ export function UserMenu({ displayName, avatarUrl, isAdmin }: UserMenuProps) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-52 overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-lg"
+          className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-lg"
         >
           <div className="border-b border-border px-4 py-2.5">
             <p className="truncate text-sm font-medium">{displayName}</p>
-            <p className="text-xs text-muted">Signed in</p>
+            <p className="text-xs text-muted">
+              {isAdmin ? "Admin" : "Signed in"}
+            </p>
           </div>
-          {[
-            { href: "/dashboard", label: "Dashboard" },
-            { href: "/messages", label: "Messages" },
-            { href: "/listings/mine", label: "My listings" },
-            { href: "/favorites", label: "Saved listings" },
-            { href: "/transactions", label: "Transactions" },
-            { href: "/credits/buy", label: "Buy credits" },
-            { href: "/profile", label: "Profile" },
-            { href: "/settings", label: "Settings" },
-            ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
-          ].map((item) => (
+
+          {links.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -85,6 +95,21 @@ export function UserMenu({ displayName, avatarUrl, isAdmin }: UserMenuProps) {
               {item.label}
             </Link>
           ))}
+
+          {/* Plain anchor (not next/link) on purpose: crossing into
+              /admin must do a full load so the root layout swaps the
+              site chrome for the admin chrome. */}
+          {showAdminLink && (
+            <a
+              href="/admin"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="block px-4 py-2 text-sm font-medium text-circ-blue-dark hover:bg-brand-50"
+            >
+              Admin panel
+            </a>
+          )}
+
           <button
             type="button"
             role="menuitem"

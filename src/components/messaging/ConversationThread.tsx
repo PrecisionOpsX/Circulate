@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   markConversationReadAction,
@@ -48,11 +49,15 @@ export function ConversationThread({
   const [messages, setMessages] = useState<OptimisticMessage[]>(initialMessages);
   const supabase = useMemo(() => createClient(), []);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
-  // Mark read once, on mount.
+  // Mark read once on mount, then refresh so the header bell re-syncs
+  // to the updated server count.
   useEffect(() => {
-    void markConversationReadAction(conversationId);
-  }, [conversationId]);
+    void markConversationReadAction(conversationId).then(() => {
+      router.refresh();
+    });
+  }, [conversationId, router]);
 
   // Live subscription.
   useEffect(() => {
@@ -102,6 +107,7 @@ export function ConversationThread({
         conversation_id: conversationId,
         sender_id: currentUserId,
         body,
+        viewed: false,
         created_at: new Date().toISOString(),
         pending: true,
       };

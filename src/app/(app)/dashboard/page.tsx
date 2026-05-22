@@ -7,6 +7,7 @@ import { CREDIT_RULES } from "@/lib/constants";
 import { formatCredits } from "@/lib/utils";
 import { getPendingRatings, getRatingsForUser } from "@/lib/ratings";
 import { getMyUnreadCount } from "@/lib/messaging";
+import { DashboardMessagesCard } from "@/components/dashboard/DashboardMessagesCard";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { VerificationBadges } from "@/components/account/VerificationBadges";
@@ -90,6 +91,31 @@ export default async function DashboardPage() {
           A {Math.round(CREDIT_RULES.FEE_RATE * 100)}% platform fee is taken
           from each sale.
         </p>
+
+        {/* Quick navigation cards, under the balance. */}
+        <div className="mt-5 grid gap-3 border-t border-border pt-5 sm:grid-cols-2 lg:grid-cols-3">
+          <QuickLink
+            href="/browse"
+            title="Browse listings"
+            body="Find goods and services to trade for."
+          />
+          <QuickLink
+            href="/listings/new"
+            title="Create a listing"
+            body="Post goods or a service for credits."
+          />
+          <DashboardMessagesCard initialUnread={unreadCount} userId={id} />
+          <QuickLink
+            href="/listings/mine"
+            title="My listings"
+            body={`${activeListings} active listing${activeListings === 1 ? "" : "s"}.`}
+          />
+          <QuickLink
+            href="/favorites"
+            title="Saved listings"
+            body={`${savedCount} listing${savedCount === 1 ? "" : "s"} saved.`}
+          />
+        </div>
       </section>
 
       {/* Pending ratings */}
@@ -223,38 +249,11 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      {/* Quick actions */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <QuickLink
-          href="/listings/new"
-          title="Create a listing"
-          body="Post goods or a service for credits."
-        />
-        <QuickLink
-          href="/messages"
-          title="Messages"
-          body={
-            unreadCount > 0
-              ? `${unreadCount} unread ${unreadCount === 1 ? "conversation" : "conversations"}.`
-              : "No new messages."
-          }
-          highlight={unreadCount > 0}
-        />
-        <QuickLink
-          href="/listings/mine"
-          title="My listings"
-          body={`${activeListings} active listing${activeListings === 1 ? "" : "s"}.`}
-        />
-        <QuickLink
-          href="/favorites"
-          title="Saved listings"
-          body={`${savedCount} listing${savedCount === 1 ? "" : "s"} saved.`}
-        />
-      </section>
     </div>
   );
 }
 
+/** A bordered navigation card with a title and a short description. */
 function QuickLink({
   href,
   title,

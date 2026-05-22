@@ -41,7 +41,7 @@ export function Button({
   return (
     <Comp
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-xl font-semibold",
+        "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-semibold",
         "transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:active:scale-100",
         variants[variant],
         sizes[size],

@@ -53,13 +53,14 @@ export default async function MessagesPage() {
                   hour: "numeric",
                   minute: "2-digit",
                 })
-              : "No messages yet";
+              : null;
             return (
               <li key={c.id}>
                 <Link
                   href={`/messages/${c.id}`}
                   className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-brand-50"
                 >
+                  {/* Avatar */}
                   <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-brand-100 text-base font-semibold text-brand-700">
                     {other?.avatar_url ? (
                       <Image
@@ -76,19 +77,30 @@ export default async function MessagesPage() {
                       </span>
                     )}
                   </div>
+
+                  {/* Text block */}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate font-semibold text-brand-900">
-                        {other?.display_name ?? "Unknown user"}
-                      </p>
-                      {c.unread && (
-                        <Badge variant="blue">New</Badge>
+                    {/* Row 1: name + badge + timestamp */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <p className="truncate font-semibold text-brand-900">
+                          {other?.display_name ?? "Unknown user"}
+                        </p>
+                        {c.unread && <Badge variant="blue">New</Badge>}
+                      </div>
+                      {c.last_message_at && (
+                        <p className="shrink-0 text-xs text-muted">{when}</p>
                       )}
                     </div>
-                    <p className="truncate text-xs text-muted">
-                      {c.listing?.title ?? "(listing removed)"} &middot; {when}
+                    {/* Row 2: latest message preview or fallback */}
+                    <p className="mt-0.5 truncate text-xs text-muted">
+                      {c.latestMessage
+                        ? c.latestMessage.body
+                        : `${c.listing?.title ?? "(listing removed)"} · No messages yet`}
                     </p>
                   </div>
+
+                  {/* Listing thumbnail */}
                   {cover && (
                     <div className="relative hidden h-12 w-12 shrink-0 overflow-hidden rounded-lg sm:block">
                       <Image

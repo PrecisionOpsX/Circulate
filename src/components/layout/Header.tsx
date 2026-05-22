@@ -54,9 +54,13 @@ export async function Header() {
                 </svg>
               </Link>
               <HeaderBell initialUnread={unread} userId={user.id} />
-              <Button asChild size="sm" variant="gradient" className="hidden sm:inline-flex">
-                <Link href="/listings/new">+ New listing</Link>
-              </Button>
+              {/* Hidden below sm. The wrapper (no inline-flex of its own)
+                  is what `hidden` reliably applies to. */}
+              <span className="hidden sm:contents">
+                <Button asChild size="sm" variant="gradient">
+                  <Link href="/listings/new">+ New listing</Link>
+                </Button>
+              </span>
               <UserMenu
                 displayName={user.profile.display_name}
                 avatarUrl={user.profile.avatar_url}

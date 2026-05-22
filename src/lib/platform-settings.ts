@@ -7,11 +7,14 @@ export type PlatformSettings = {
   signupCreditGrant: number;
   /** Maximum credits a single user can purchase in any rolling 30 days. */
   monthlyCreditPurchaseCap: number;
+  /** Platform fee taken from each completed sale, as a 0-1 rate. */
+  transactionFeeRate: number;
 };
 
 const FALLBACK: PlatformSettings = {
   signupCreditGrant: CREDIT_RULES.STARTING_BALANCE,
   monthlyCreditPurchaseCap: 500,
+  transactionFeeRate: CREDIT_RULES.FEE_RATE,
 };
 
 /**
@@ -22,7 +25,7 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("platform_settings")
-    .select("signup_credit_grant, monthly_credit_purchase_cap")
+    .select("signup_credit_grant, monthly_credit_purchase_cap, transaction_fee_rate")
     .eq("id", 1)
     .maybeSingle();
   if (!data) return FALLBACK;
@@ -32,6 +35,10 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
       data.monthly_credit_purchase_cap != null
         ? Number(data.monthly_credit_purchase_cap)
         : FALLBACK.monthlyCreditPurchaseCap,
+    transactionFeeRate:
+      data.transaction_fee_rate != null
+        ? Number(data.transaction_fee_rate)
+        : FALLBACK.transactionFeeRate,
   };
 }
 

@@ -67,8 +67,8 @@ export async function getOrCreateConversationAction(
 /**
  * Append a message to a conversation. The Realtime publication on
  * `messages` notifies all participants subscribed to the channel.
- * Bumps the sender's last_read_at so their own message never registers
- * as "unread" for them.
+ * Bumps last_message_at for ordering; unread tracking is handled by
+ * the messages.viewed column, not by conversation timestamps.
  */
 export async function sendMessageAction(
   _prev: MessageState,
@@ -111,21 +111,25 @@ export async function sendMessageAction(
     return { ok: false, error: error?.message ?? "Could not send message." };
   }
 
-  const now = new Date().toISOString();
-  const isBuyer = conv.buyer_id === user.id;
+  // Bump last_message_at so the conversations list stays sorted correctly.
+  // Outbound messages default to viewed=false but that is fine: unread
+  // detection filters by sender_id != userId, so your own messages never
+  // count as unread for you.
   await supabase
     .from("conversations")
-    .update(
-      isBuyer ? { last_read_buyer_at: now } : { last_read_seller_at: now },
-    )
+    .update({ last_message_at: inserted.created_at })
     .eq("id", conversationId);
 
   return { ok: true, message: inserted };
 }
 
 /**
- * Mark a conversation as read for the signed-in user. Called from the
- * client when they open or focus a conversation.
+ * Mark all unread messages in a conversation as viewed for the signed-in
+ * user. Called from the client when they open a conversation thread.
+ *
+ * The RLS policy on messages only allows the non-sender to flip
+ * viewed=true, so this update is safe to run without a participant check
+ * on the conversations table -- the policy enforces it at the DB level.
  */
 export async function markConversationReadAction(
   conversationId: string,
@@ -137,20 +141,13 @@ export async function markConversationReadAction(
   } = await supabase.auth.getUser();
   if (!user) return;
 
-  const { data: conv } = await supabase
-    .from("conversations")
-    .select("buyer_id, seller_id")
-    .eq("id", conversationId)
-    .maybeSingle();
-  if (!conv) return;
-  if (conv.buyer_id !== user.id && conv.seller_id !== user.id) return;
-
-  const now = new Date().toISOString();
-  const isBuyer = conv.buyer_id === user.id;
+  // Flip every unread message in this conversation that was sent by
+  // the other party. The RLS WITH CHECK ensures viewed can only go
+  // false -> true, never the reverse.
   await supabase
-    .from("conversations")
-    .update(
-      isBuyer ? { last_read_buyer_at: now } : { last_read_seller_at: now },
-    )
-    .eq("id", conversationId);
+    .from("messages")
+    .update({ viewed: true })
+    .eq("conversation_id", conversationId)
+    .neq("sender_id", user.id)
+    .eq("viewed", false);
 }

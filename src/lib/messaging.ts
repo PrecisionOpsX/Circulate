@@ -1,10 +1,10 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type {
-  Conversation,
   ListingStatus,
   ListingType,
   Message,
+  Conversation,
 } from "@/lib/supabase/types";
 
 export type ChatParty = {
@@ -30,6 +30,7 @@ export type ConversationWithRelations = Conversation & {
 
 export type ConversationListItem = ConversationWithRelations & {
   unread: boolean;
+  latestMessage: Pick<Message, "body" | "sender_id" | "created_at"> | null;
 };
 
 const CONVERSATION_SELECT =
@@ -37,6 +38,23 @@ const CONVERSATION_SELECT =
   "listing:listings(id, title, status, price, type, listing_photos(url, sort_order)), " +
   "buyer:profiles!buyer_id(id, display_name, avatar_url), " +
   "seller:profiles!seller_id(id, display_name, avatar_url)";
+
+/**
+ * Number of the user's conversations that contain at least one unread
+ * message. Uses the messages.viewed column so the result is always
+ * correct on a hard refresh -- no dependency on conversation timestamps.
+ */
+export async function getMyUnreadCount(userId: string): Promise<number> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("messages")
+    .select("conversation_id")
+    .eq("viewed", false)
+    .neq("sender_id", userId);
+
+  // Count distinct conversations with at least one unread message.
+  return new Set((data ?? []).map((m) => m.conversation_id)).size;
+}
 
 /** All conversations the user participates in, newest activity first. */
 export async function getMyConversations(
@@ -50,23 +68,45 @@ export async function getMyConversations(
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .returns<ConversationWithRelations[]>();
 
-  return (data ?? []).map((c) => ({ ...c, unread: isUnreadFor(c, userId) }));
-}
+  const convs = data ?? [];
+  if (convs.length === 0) return [];
 
-/** Number of the user's conversations that have unseen new messages. */
-export async function getMyUnreadCount(userId: string): Promise<number> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("conversations")
-    .select(
-      "buyer_id, seller_id, last_message_at, last_read_buyer_at, last_read_seller_at",
-    )
-    .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`);
+  // Fetch all messages for these conversations in one query.
+  // - viewed + sender_id together let us derive the unread flag.
+  // - ordering DESC means the first row per conversation is the newest.
+  const convIds = convs.map((c) => c.id);
+  const { data: msgs } = await supabase
+    .from("messages")
+    .select("conversation_id, body, sender_id, created_at, viewed")
+    .in("conversation_id", convIds)
+    .order("created_at", { ascending: false });
 
-  return (data ?? []).reduce(
-    (count, c) => count + (isUnreadFor(c, userId) ? 1 : 0),
-    0,
-  );
+  const latestByConv = new Map<
+    string,
+    Pick<Message, "body" | "sender_id" | "created_at">
+  >();
+  const unreadConvIds = new Set<string>();
+
+  for (const m of msgs ?? []) {
+    // First occurrence per conversation = newest message (list preview).
+    if (!latestByConv.has(m.conversation_id)) {
+      latestByConv.set(m.conversation_id, {
+        body: m.body,
+        sender_id: m.sender_id,
+        created_at: m.created_at,
+      });
+    }
+    // Any unviewed message from the other party means the conversation is unread.
+    if (!m.viewed && m.sender_id !== userId) {
+      unreadConvIds.add(m.conversation_id);
+    }
+  }
+
+  return convs.map((c) => ({
+    ...c,
+    unread: unreadConvIds.has(c.id),
+    latestMessage: latestByConv.get(c.id) ?? null,
+  }));
 }
 
 /** Fetch one conversation with its relations; returns null if the user isn't a participant. */
@@ -148,15 +188,16 @@ export async function getListingConversationsForUser(
   const convIds = convs.map((c) => c.id);
   const { data: messages } = await supabase
     .from("messages")
-    .select("conversation_id, body, sender_id, created_at")
+    .select("conversation_id, body, sender_id, created_at, viewed")
     .in("conversation_id", convIds)
     .order("created_at", { ascending: false });
 
-  // First (newest) message per conversation wins.
   const latestByConv = new Map<
     string,
     Pick<Message, "body" | "sender_id" | "created_at">
   >();
+  const unreadConvIds = new Set<string>();
+
   for (const m of messages ?? []) {
     if (!latestByConv.has(m.conversation_id)) {
       latestByConv.set(m.conversation_id, {
@@ -165,35 +206,14 @@ export async function getListingConversationsForUser(
         created_at: m.created_at,
       });
     }
+    if (!m.viewed && m.sender_id !== userId) {
+      unreadConvIds.add(m.conversation_id);
+    }
   }
 
   return convs.map((c) => ({
     ...c,
     latestMessage: latestByConv.get(c.id) ?? null,
-    unread: isUnreadFor(c, userId),
+    unread: unreadConvIds.has(c.id),
   }));
-}
-
-/**
- * Unread heuristic: a conversation is unread for me if there's a last
- * message stamped later than the timestamp at which I last read this
- * conversation. Sending a message also bumps my own read timestamp (handled
- * in the sendMessage action), so my own messages never show as unread.
- */
-function isUnreadFor(
-  c: Pick<
-    Conversation,
-    | "buyer_id"
-    | "seller_id"
-    | "last_message_at"
-    | "last_read_buyer_at"
-    | "last_read_seller_at"
-  >,
-  userId: string,
-): boolean {
-  if (!c.last_message_at) return false;
-  const lastRead =
-    c.buyer_id === userId ? c.last_read_buyer_at : c.last_read_seller_at;
-  if (!lastRead) return true;
-  return c.last_message_at > lastRead;
 }
