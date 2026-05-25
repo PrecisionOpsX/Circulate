@@ -90,44 +90,98 @@ export async function setUserRoleAction(formData: FormData): Promise<void> {
 }
 
 /**
- * Transfer credits from the platform reserve wallet to a user's wallet.
- * Useful for refunds, customer support credits, and promos. The atomic
- * debit + credit happens inside the admin_grant_credits() RPC so there
- * is no gap where balances are inconsistent.
+ * Transfer credits from the platform reserve to a single user's wallet
+ * or broadcast to every user at once (recipientId === "__all__").
+ * The atomic debit + credit happens inside the DB RPC functions.
  */
 export async function grantCreditsAction(formData: FormData): Promise<void> {
   const { supabase, user, isAdmin } = await getAdminContext();
-  if (!user || !isAdmin) {
-    redirect("/dashboard");
-  }
+  if (!user || !isAdmin) redirect("/dashboard");
 
   const recipientId = String(formData.get("recipientId") ?? "").trim();
   const amount = Number(formData.get("amount"));
   const note = String(formData.get("note") ?? "").trim();
 
-  // Basic validation before hitting the DB.
   if (!recipientId || !Number.isFinite(amount) || amount <= 0) {
     redirect("/admin/reserve?error=invalid");
   }
 
-  const { error } = await supabase.rpc("admin_grant_credits", {
-    p_recipient_id: recipientId,
-    p_amount: amount,
-    p_admin_id: user.id,
-    p_note: note || undefined,
-  });
-
-  if (error) {
-    // Surface insufficient-reserve and user-not-found errors distinctly.
-    const code =
-      error.message.includes("insufficient") ? "insufficient"
-      : error.message.includes("Recipient") ? "no_wallet"
-      : "failed";
-    redirect(`/admin/reserve?error=${code}`);
+  if (recipientId === "__all__") {
+    // Broadcast the same amount to every user wallet.
+    const { error } = await supabase.rpc("admin_grant_credits_all", {
+      p_amount_each: amount,
+      p_admin_id: user.id,
+      p_note: note || null,
+    });
+    if (error) {
+      const code = error.message.includes("insufficient") ? "insufficient"
+        : error.message.includes("No user wallets") ? "no_users"
+        : "failed";
+      redirect(`/admin/reserve?error=${code}`);
+    }
+  } else {
+    // Single-user grant.
+    const { error } = await supabase.rpc("admin_grant_credits", {
+      p_recipient_id: recipientId,
+      p_amount: amount,
+      p_admin_id: user.id,
+      p_note: note || null,
+    });
+    if (error) {
+      console.error(
+        "[grantCreditsAction] RPC error:",
+        error.code,
+        error.message,
+        error.details,
+      );
+      const msg = (error.message ?? "").toLowerCase();
+      const code =
+        error.code === "PGRST202" ||
+        msg.includes("schema cache") ||
+        msg.includes("could not find the function") ||
+        msg.includes("does not exist")
+          ? "no_function"
+          : error.code === "P0002" || msg.includes("recipient wallet")
+            ? "no_wallet"
+            : msg.includes("insufficient")
+              ? "insufficient"
+              : "failed";
+      redirect(`/admin/reserve?error=${code}`);
+    }
   }
 
   revalidatePath("/admin/reserve");
   redirect("/admin/reserve?granted=1");
+}
+
+/**
+ * Mint new credits directly into the reserve wallet without debiting any
+ * source. Used when the admin needs more reserve capacity than fees alone
+ * provide.
+ */
+export async function mintCreditsAction(formData: FormData): Promise<void> {
+  const { supabase, user, isAdmin } = await getAdminContext();
+  if (!user || !isAdmin) redirect("/dashboard");
+
+  const amount = Number(formData.get("mintAmount"));
+  const note = String(formData.get("mintNote") ?? "").trim();
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    redirect("/admin/reserve?error=invalid_mint");
+  }
+
+  const { error } = await supabase.rpc("admin_mint_credits", {
+    p_amount: amount,
+    p_admin_id: user.id,
+    p_note: note || null,
+  });
+
+  if (error) {
+    redirect("/admin/reserve?error=mint_failed");
+  }
+
+  revalidatePath("/admin/reserve");
+  redirect("/admin/reserve?minted=1");
 }
 
 /**

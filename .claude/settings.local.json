@@ -35,7 +35,10 @@
       "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(JSON.stringify\\({dependencies:p.dependencies,devDependencies:p.devDependencies,scripts:p.scripts},null,2\\)\\)\")",
       "Bash(node -e \"console.log\\('stripe:', require\\('stripe/package.json'\\).version\\); console.log\\('qrcode.react:', require\\('qrcode.react/package.json'\\).version\\)\")",
       "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./package.json'\\).dependencies, null, 2\\)\\)\")",
-      "Bash(cd \"D:/work/Git/Next/Circulate\" && rm -rf src/app/listings/[id]/rate && echo \"removed redundant listings/[id]/rate\")"
+      "Bash(cd \"D:/work/Git/Next/Circulate\" && rm -rf src/app/listings/[id]/rate && echo \"removed redundant listings/[id]/rate\")",
+      "Bash(grep -E \"\\\\.sql$\")",
+      "Bash(grep -r \"type.*ListingType\\\\|goods\\\\|service\" \"$\\(pwd\\)/src/lib\" --include=\"*.ts\")",
+      "Bash(grep -r \"Select a category\\\\|Select a location\\\\|Select a condition\\\\|Goods &\" \"$\\(pwd\\)/src\" --include=\"*.tsx\" --include=\"*.ts\")"
     ]
   }
 }

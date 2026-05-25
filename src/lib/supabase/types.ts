@@ -156,7 +156,10 @@ export type Report = {
 export type Ad = {
   id: string;
   slot: string;
+  /** Primary / first image URL. Kept for backward compatibility. */
   image_url: string;
+  /** All banner images in display order. When non-empty, takes precedence over image_url. */
+  image_urls: string[];
   link_url: string;
   start_date: string | null;
   end_date: string | null;
@@ -221,7 +224,7 @@ export type Database = {
       blocks: TableShape<Block, "id" | "created_at">;
       ratings: TableShape<Rating, "id" | "created_at", "review">;
       reports: TableShape<Report, "id" | "created_at", "details" | "status" | "resolved_at">;
-      ads: TableShape<Ad, "id" | "created_at", "start_date" | "end_date" | "is_enabled">;
+      ads: TableShape<Ad, "id" | "created_at", "start_date" | "end_date" | "is_enabled" | "image_urls">;
       admin_audit_log: TableShape<AdminAuditLog, "id" | "created_at", "detail" | "target_type" | "target_id">;
       credit_purchases: TableShape<CreditPurchase, "id" | "created_at", "stripe_session_id" | "stripe_payment_intent_id" | "status" | "completed_at">;
       platform_settings: TableShape<PlatformSettings, "created_at" | "updated_at", "id" | "signup_credit_grant" | "monthly_credit_purchase_cap" | "transaction_fee_rate">;
@@ -251,7 +254,23 @@ export type Database = {
           p_recipient_id: string;
           p_amount: number;
           p_admin_id: string;
-          p_note?: string;
+          p_note?: string | null;
+        };
+        Returns: void;
+      };
+      admin_grant_credits_all: {
+        Args: {
+          p_amount_each: number;
+          p_admin_id: string;
+          p_note?: string | null;
+        };
+        Returns: number;
+      };
+      admin_mint_credits: {
+        Args: {
+          p_amount: number;
+          p_admin_id: string;
+          p_note?: string | null;
         };
         Returns: void;
       };

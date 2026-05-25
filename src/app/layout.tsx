@@ -7,6 +7,7 @@ import { APP_DESCRIPTION, APP_NAME, APP_TAGLINE } from "@/lib/constants";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { TopProgressBar } from "@/components/layout/TopProgressBar";
+import { AdBanner } from "@/components/ads/AdBanner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,7 +52,15 @@ export default async function RootLayout({
           <TopProgressBar />
         </Suspense>
         {!isAdminArea && <Header />}
-        <main className="flex flex-1 flex-col">{children}</main>
+        <main className="flex flex-1 flex-col">
+          {!isAdminArea && (
+            <div className="mx-auto w-full max-w-4xl px-4">
+              <AdBanner slot="top-1" className="mt-4 sm:mt-6" />
+              <AdBanner slot="top-2" className="mt-2" />
+            </div>
+          )}
+          {children}
+        </main>
         {!isAdminArea && <Footer />}
       </body>
     </html>

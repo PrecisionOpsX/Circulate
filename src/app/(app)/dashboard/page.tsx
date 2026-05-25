@@ -8,6 +8,7 @@ import { formatCredits } from "@/lib/utils";
 import { getPendingRatings, getRatingsForUser } from "@/lib/ratings";
 import { getMyUnreadCount } from "@/lib/messaging";
 import { DashboardMessagesCard } from "@/components/dashboard/DashboardMessagesCard";
+import { AdBanner } from "@/components/ads/AdBanner";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { VerificationBadges } from "@/components/account/VerificationBadges";
@@ -117,6 +118,9 @@ export default async function DashboardPage() {
           />
         </div>
       </section>
+
+      {/* Mid-page ad banner */}
+      <AdBanner slot="dashboard-mid" />
 
       {/* Pending ratings */}
       {pendingRatings.length > 0 && (

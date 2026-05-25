@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatCredits } from "@/lib/utils";
-import { grantCreditsAction } from "@/app/admin/actions";
+import { grantCreditsAction, mintCreditsAction } from "@/app/admin/actions";
 import { Alert } from "@/components/ui/Alert";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
@@ -11,22 +11,35 @@ import type { Profile, AdminAuditLog } from "@/lib/supabase/types";
 
 export const metadata: Metadata = { title: "Reserve" };
 
-const ERROR_MESSAGES: Record<string, string> = {
-  invalid: "Please enter a valid user and a positive amount.",
+const GRANT_ERRORS: Record<string, string> = {
+  invalid:      "Please enter a valid recipient and a positive amount.",
   insufficient: "The reserve balance is too low for that grant amount.",
-  no_wallet: "That user does not have a wallet yet.",
-  failed: "Something went wrong processing the grant. Please try again.",
+  no_wallet:    "That user does not have a wallet yet.",
+  no_users:     "No user wallets were found to broadcast to.",
+  no_function:  "The grant function is missing from the database. Please run migration 0022 in your Supabase SQL Editor.",
+  failed:       "Something went wrong processing the grant. Please try again.",
 };
 
-type GrantLog = Pick<AdminAuditLog, "id" | "admin_id" | "target_id" | "detail" | "created_at">;
+const MINT_ERRORS: Record<string, string> = {
+  invalid_mint: "Please enter a positive amount to mint.",
+  mint_failed:  "Something went wrong creating the credits. Please try again.",
+};
+
+type GrantLog = Pick<AdminAuditLog,
+  "id" | "admin_id" | "action" | "target_id" | "detail" | "created_at"
+>;
 
 export default async function AdminReservePage({
   searchParams,
 }: {
-  searchParams: Promise<{ granted?: string; error?: string }>;
+  searchParams: Promise<{
+    granted?: string;
+    minted?: string;
+    error?: string;
+  }>;
 }) {
   const me = await requireAdmin();
-  const { granted, error } = await searchParams;
+  const { granted, minted, error } = await searchParams;
 
   const supabase = await createClient();
 
@@ -39,13 +52,12 @@ export default async function AdminReservePage({
     supabase
       .from("profiles")
       .select("id, display_name")
-      .neq("id", me.id)
       .order("display_name", { ascending: true })
       .returns<Pick<Profile, "id" | "display_name">[]>(),
     supabase
       .from("admin_audit_log")
-      .select("id, admin_id, target_id, detail, created_at")
-      .eq("action", "grant_credits")
+      .select("id, admin_id, action, target_id, detail, created_at")
+      .in("action", ["grant_credits", "mint_credits"])
       .order("created_at", { ascending: false })
       .limit(25)
       .returns<GrantLog[]>(),
@@ -55,7 +67,7 @@ export default async function AdminReservePage({
   const users = usersRes.data ?? [];
   const logs = logsRes.data ?? [];
 
-  // Collect unique user IDs from log rows so we can look up display names.
+  // Collect unique user IDs from log rows for display name lookup.
   const logUserIds = new Set<string>();
   for (const log of logs) {
     if (log.admin_id) logUserIds.add(log.admin_id);
@@ -74,6 +86,9 @@ export default async function AdminReservePage({
     }
   }
 
+  const isMintError  = error === "invalid_mint" || error === "mint_failed";
+  const isGrantError = !isMintError && !!error;
+
   return (
     <div className="space-y-8">
       <header>
@@ -81,8 +96,8 @@ export default async function AdminReservePage({
           Reserve wallet
         </h2>
         <p className="mt-1 text-sm text-muted">
-          Credits collected from platform fees. Grant credits to users for
-          refunds, support, or promotions.
+          Credits collected from platform fees. Mint new credits or grant
+          them to users for refunds, support, or promotions.
         </p>
       </header>
 
@@ -97,18 +112,89 @@ export default async function AdminReservePage({
         </p>
       </section>
 
-      {/* Grant form */}
+      {/* ---- Mint credits ---- */}
       <section className="space-y-4">
-        <h3 className="text-base font-semibold text-brand-900">
-          Grant credits to a user
-        </h3>
+        <div>
+          <h3 className="text-base font-semibold text-brand-900">
+            Create credits (mint)
+          </h3>
+          <p className="mt-0.5 text-sm text-muted">
+            Add new credits directly to the reserve without debiting any
+            source. Use this when the reserve needs topping up beyond
+            automatic fee collection.
+          </p>
+        </div>
+
+        {minted && (
+          <Alert variant="success">Credits minted and added to the reserve.</Alert>
+        )}
+        {isMintError && (
+          <Alert variant="error">
+            {MINT_ERRORS[error ?? ""] ?? "Something went wrong."}
+          </Alert>
+        )}
+
+        <form
+          action={mintCreditsAction}
+          className="space-y-5 rounded-2xl border border-border bg-surface p-6"
+        >
+          <Field
+            htmlFor="mintAmount"
+            label="Amount (credits)"
+            hint="Positive number. These credits are created from nothing."
+            required
+          >
+            <Input
+              id="mintAmount"
+              name="mintAmount"
+              type="number"
+              min={0.01}
+              step="0.01"
+              placeholder="0.00"
+              required
+            />
+          </Field>
+
+          <Field
+            htmlFor="mintNote"
+            label="Note (optional)"
+            hint="Reason stored in the audit log."
+          >
+            <Input
+              id="mintNote"
+              name="mintNote"
+              type="text"
+              maxLength={200}
+              placeholder="e.g. Monthly platform top-up"
+            />
+          </Field>
+
+          <div className="flex justify-end border-t border-border pt-4">
+            <SubmitButton size="sm" variant="secondary" pendingLabel="Minting...">
+              Mint credits
+            </SubmitButton>
+          </div>
+        </form>
+      </section>
+
+      {/* ---- Grant credits ---- */}
+      <section className="space-y-4">
+        <div>
+          <h3 className="text-base font-semibold text-brand-900">
+            Grant credits to users
+          </h3>
+          <p className="mt-0.5 text-sm text-muted">
+            Transfer credits from the reserve to one user or broadcast the
+            same amount to every user at once.
+          </p>
+        </div>
 
         {granted && (
           <Alert variant="success">Credits granted successfully.</Alert>
         )}
-        {error && (
+        {isGrantError && (
           <Alert variant="error">
-            {ERROR_MESSAGES[error] ?? "Something went wrong."}
+            {GRANT_ERRORS[error ?? ""] ?? "Something went wrong."}
           </Alert>
         )}
 
@@ -119,7 +205,7 @@ export default async function AdminReservePage({
           <Field
             htmlFor="recipientId"
             label="Recipient"
-            hint="The user who will receive the credits."
+            hint="Choose a specific user or broadcast to everyone."
             required
           >
             <select
@@ -128,10 +214,14 @@ export default async function AdminReservePage({
               required
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-200"
             >
-              <option value="">Select a user...</option>
+              <option value="">Select a recipient...</option>
+              <option value="__all__">
+                All users (broadcast)
+              </option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.display_name}
+                  {u.id === me.id ? " (you)" : ""}
                 </option>
               ))}
             </select>
@@ -140,7 +230,7 @@ export default async function AdminReservePage({
           <Field
             htmlFor="amount"
             label="Amount (credits)"
-            hint="Must be a positive number and not exceed the reserve balance."
+            hint="For a broadcast, each user receives this amount individually."
             required
           >
             <Input
@@ -165,7 +255,7 @@ export default async function AdminReservePage({
               name="note"
               type="text"
               maxLength={200}
-              placeholder="e.g. Refund for cancelled order #123"
+              placeholder="e.g. Platform promotion — May 2026"
             />
           </Field>
 
@@ -177,22 +267,44 @@ export default async function AdminReservePage({
         </form>
       </section>
 
-      {/* Grant history */}
+      {/* ---- History ---- */}
       {logs.length > 0 && (
         <section className="space-y-4">
           <h3 className="text-base font-semibold text-brand-900">
-            Recent grants
+            Recent activity
           </h3>
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
             {logs.map((log) => {
-              const detail = log.detail as {
-                amount?: number;
-                note?: string;
-              };
-              const recipientName =
-                profileMap.get(log.target_id ?? "") ?? "Unknown user";
+              const isMint = log.action === "mint_credits";
+              const detail = log.detail as Record<string, unknown>;
               const adminName =
                 profileMap.get(log.admin_id) ?? "Unknown admin";
+
+              let label: string;
+              let badge: string;
+
+              if (isMint) {
+                const amt = detail.amount as number ?? 0;
+                label = `Minted ${formatCredits(amt)} to reserve`;
+                badge = `+${formatCredits(amt)}`;
+              } else if (!log.target_id) {
+                // Broadcast grant (all_users)
+                const each  = detail.amount_each as number ?? 0;
+                const total = detail.total as number ?? 0;
+                const count = detail.user_count as number ?? 0;
+                label = `${formatCredits(each)} each to all ${count} users (total ${formatCredits(total)})`;
+                badge = `-${formatCredits(total)}`;
+              } else {
+                // Single-user grant
+                const amt = detail.amount as number ?? 0;
+                const recipientName =
+                  profileMap.get(log.target_id) ?? "Unknown user";
+                label = `${formatCredits(amt)} to ${recipientName}`;
+                badge = `-${formatCredits(amt)}`;
+              }
+
+              const note = detail.note as string | undefined;
+
               return (
                 <li
                   key={log.id}
@@ -200,11 +312,11 @@ export default async function AdminReservePage({
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-brand-900">
-                      {formatCredits(detail.amount ?? 0)} to {recipientName}
+                      {label}
                     </p>
-                    {detail.note && (
+                    {note && (
                       <p className="mt-0.5 truncate text-xs text-muted">
-                        {detail.note}
+                        {note}
                       </p>
                     )}
                     <p className="mt-0.5 text-xs text-muted">
@@ -216,8 +328,14 @@ export default async function AdminReservePage({
                       })}
                     </p>
                   </div>
-                  <span className="shrink-0 rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-semibold text-brand-700">
-                    +{formatCredits(detail.amount ?? 0)}
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                      isMint
+                        ? "bg-brand-50 text-brand-700"
+                        : "bg-red-50 text-red-700"
+                    }`}
+                  >
+                    {badge}
                   </span>
                 </li>
               );

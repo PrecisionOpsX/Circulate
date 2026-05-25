@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatCredits } from "@/lib/utils";
+import { getAllAds } from "@/lib/ads";
 
 export const metadata: Metadata = { title: "Admin" };
 
@@ -13,7 +14,7 @@ export const metadata: Metadata = { title: "Admin" };
 export default async function AdminOverviewPage() {
   const supabase = await createClient();
 
-  const [usersRes, adminsRes, activeListingsRes, completedTxnsRes, reserveRes] =
+  const [usersRes, adminsRes, activeListingsRes, completedTxnsRes, reserveRes, allAds] =
     await Promise.all([
       supabase.from("profiles").select("*", { count: "exact", head: true }),
       supabase
@@ -33,7 +34,16 @@ export default async function AdminOverviewPage() {
         .select("balance")
         .eq("is_reserve", true)
         .maybeSingle(),
+      getAllAds(),
     ]);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const liveAdsCount = allAds.filter(
+    (a) =>
+      a.is_enabled &&
+      (a.start_date === null || a.start_date <= today) &&
+      (a.end_date === null || a.end_date >= today),
+  ).length;
 
   const stats = [
     { label: "Total users", value: String(usersRes.count ?? 0) },
@@ -43,6 +53,10 @@ export default async function AdminOverviewPage() {
     {
       label: "Reserve balance",
       value: `${formatCredits(reserveRes.data?.balance ?? 0)} cr`,
+    },
+    {
+      label: "Live ads",
+      value: String(liveAdsCount),
     },
   ];
 
@@ -56,6 +70,16 @@ export default async function AdminOverviewPage() {
       href: "/admin/reserve",
       title: "Reserve wallet",
       body: "View the fee reserve balance and grant credits to users.",
+    },
+    {
+      href: "/admin/catalog",
+      title: "Catalog options",
+      body: "Edit the categories, locations, and conditions shown in listing forms and browse filters.",
+    },
+    {
+      href: "/admin/ads",
+      title: "Advertisements",
+      body: "Create and manage sponsor banners displayed across the platform.",
     },
     {
       href: "/admin/settings",
